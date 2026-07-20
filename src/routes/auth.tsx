@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, Mail, Lock, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
@@ -85,10 +84,16 @@ function AuthPage() {
 
   async function onGoogle() {
     setError(null);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    // OAuth direto Supabase → Google. Requer:
+    //  1) Google Cloud Console: OAuth client ID + redirect URI = https://<project>.supabase.co/auth/v1/callback
+    //  2) Supabase → Authentication → Providers → Google: cola Client ID + Secret
+    //  3) Supabase → Authentication → URL Configuration: Site URL + Additional Redirect URLs
+    //     apontando pra window.location.origin (o domínio do Lummi).
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
     });
-    if (result.error) setError(mapAuthError(result.error.message ?? "Falha ao entrar com Google"));
+    if (error) setError(mapAuthError(error.message ?? "Falha ao entrar com Google"));
   }
 
   return (
