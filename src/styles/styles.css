@@ -1,0 +1,84 @@
+@import "./styles/tokens.css";
+@import "./styles/lummi.css";
+
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --color-background: var(--lf-canvas);
+  --color-foreground: var(--lf-ink);
+  --color-card: var(--lf-surface-1);
+  --color-card-foreground: var(--lf-ink);
+  --color-popover: var(--lf-surface-2);
+  --color-popover-foreground: var(--lf-ink);
+  --color-primary: var(--lf-accent);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--lf-surface-3);
+  --color-secondary-foreground: var(--lf-ink);
+  --color-muted: var(--lf-surface-3);
+  --color-muted-foreground: var(--lf-ink-subtle);
+  --color-accent: var(--lf-accent);
+  --color-accent-foreground: #ffffff;
+  --color-destructive: var(--lf-danger);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--lf-border);
+  --color-input: var(--lf-border);
+  --color-ring: var(--lf-accent);
+}
+
+:root {
+  --radius: 8px;
+  --background: var(--lf-canvas);
+  --foreground: var(--lf-ink);
+  --card: var(--lf-surface-1);
+  --card-foreground: var(--lf-ink);
+  --popover: var(--lf-surface-2);
+  --popover-foreground: var(--lf-ink);
+  --primary: var(--lf-accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--lf-surface-3);
+  --secondary-foreground: var(--lf-ink);
+  --muted: var(--lf-surface-3);
+  --muted-foreground: var(--lf-ink-subtle);
+  --accent: var(--lf-accent);
+  --accent-foreground: #ffffff;
+  --destructive: var(--lf-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--lf-border);
+  --input: var(--lf-border);
+  --ring: var(--lf-accent);
+
+  --gradient-hero: linear-gradient(180deg, var(--lf-surface-1) 0%, var(--lf-canvas) 100%);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--lf-canvas);
+    color: var(--lf-ink);
+    font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility bg-hero-gradient {
+  background: var(--gradient-hero);
+}
+
+@utility shadow-card-soft {
+  box-shadow: var(--shadow-card);
+}

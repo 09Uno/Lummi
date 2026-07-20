@@ -1,0 +1,38 @@
+# Lummi — stack de produção. Espelha o padrão da VPS:
+#   ~/docker/sistemas/lummi/
+#     ├── repo/                ← git clone deste repositório
+#     ├── docker-compose.yml   ← este arquivo (fica FORA do repo)
+#     └── .env                 ← copie de repo/.env.example e preencha
+#
+# É um único container SSR (TanStack Start + Nitro preset node-server). O Nginx
+# Proxy Manager encosta em lummi-web:3000 pela rede `proxy-net` — igual
+# copiloto/n8n. Sem Postgres próprio: o app fala direto com o Supabase (SaaS)
+# usando SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY do .env.
+#
+# Deploy: cd ~/docker/sistemas/lummi && docker compose pull && docker compose up -d --build
+services:
+  lummi-web:
+    build:
+      context: ./repo
+      dockerfile: Dockerfile
+      args:
+        # VITE_* precisa entrar no build (bundle do cliente é gerado nesse momento).
+        # Lê os mesmos nomes do .env, então basta preencher lá.
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+    container_name: lummi-web
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Bahia
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3000
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true

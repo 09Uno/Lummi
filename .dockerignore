@@ -1,0 +1,36 @@
+# Não copiar nada disso pra dentro da imagem — reduz contexto de build e evita vazar segredos.
+.git
+.gitignore
+.github
+.claude
+.lovable
+.vscode
+.idea
+.DS_Store
+
+# Dependências e artefatos locais
+node_modules
+dist
+dist-ssr
+.output
+.nitro
+.vinxi
+.tanstack
+.wrangler
+.dev.vars
+
+# Env — segredos entram só via runtime (env_file no compose) ou build args explícitos.
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Docker / deploy (não precisam ir pra dentro da própria imagem)
+Dockerfile
+docker-compose.yml
+.dockerignore

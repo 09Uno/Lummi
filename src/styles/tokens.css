@@ -1,0 +1,145 @@
+/* ============================================================
+   Lummi Design System — Linear × Vercel inspired
+   Dark-mode first • Dense • Tool-like • Professional
+   ============================================================ */
+
+:root {
+  /* ---------- COLOR PRIMITIVES ---------- */
+  /* Canvas / Backgrounds (Linear-style ladder) */
+  --lf-canvas: #010102;
+  --lf-surface-1: #0f1011; /* main panels, sidebar */
+  --lf-surface-2: #141516; /* cards, elevated */
+  --lf-surface-3: #18191a; /* hover, secondary */
+  --lf-surface-4: #1f2023; /* active / pressed */
+  --lf-surface-5: #28282c; /* highest elevation */
+
+  /* Hairlines / Borders */
+  --lf-border: #23252a;
+  --lf-border-strong: #34343a;
+  --lf-border-subtle: #1a1b1e;
+
+  /* Text */
+  --lf-ink: #f7f8f8; /* primary text */
+  --lf-ink-muted: #d0d6e0; /* secondary */
+  --lf-ink-subtle: #8a8f98; /* tertiary / placeholders */
+  --lf-ink-faint: #62666d; /* disabled, timestamps */
+
+  /* Brand Accent — Linear lavender */
+  --lf-accent: #5e6ad2;
+  --lf-accent-hover: #6e7ae2;
+  --lf-accent-active: #4e5ac2;
+  --lf-accent-muted: #5e6ad2 / 0.15;
+  --lf-accent-glow: #5e6ad2 / 0.25;
+
+  /* Semantic */
+  --lf-success: #27a644;
+  --lf-success-muted: #27a644 / 0.15;
+  --lf-warning: #f5a623;
+  --lf-warning-muted: #f5a623 / 0.15;
+  --lf-danger: #e01e2c;
+  --lf-danger-muted: #e01e2c / 0.15;
+  --lf-info: #3b82f6;
+
+  /* Overlays */
+  --lf-overlay: rgba(1, 1, 2, 0.72);
+  --lf-overlay-strong: rgba(1, 1, 2, 0.88);
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --lf-font-sans:
+    "Inter", "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --lf-font-mono:
+    "Berkeley Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Type scale (Linear-inspired, tighter tracking) */
+  --lf-text-xs: 0.75rem; /* 12px */
+  --lf-text-sm: 0.8125rem; /* 13px */
+  --lf-text-base: 0.875rem; /* 14px — default UI */
+  --lf-text-md: 0.9375rem; /* 15px */
+  --lf-text-lg: 1rem; /* 16px */
+  --lf-text-xl: 1.125rem; /* 18px */
+  --lf-text-2xl: 1.25rem; /* 20px */
+  --lf-text-3xl: 1.5rem; /* 24px */
+  --lf-text-4xl: 2rem; /* 32px */
+  --lf-text-5xl: 2.5rem; /* 40px */
+  --lf-text-6xl: 3rem; /* 48px */
+
+  --lf-leading-none: 1;
+  --lf-leading-tight: 1.15;
+  --lf-leading-snug: 1.25;
+  --lf-leading-normal: 1.4;
+  --lf-leading-relaxed: 1.5;
+
+  --lf-tracking-tighter: -0.04em;
+  --lf-tracking-tight: -0.025em;
+  --lf-tracking-normal: -0.01em;
+  --lf-tracking-wide: 0.01em;
+
+  /* Font weights (Linear uses ~510 for medium) */
+  --lf-weight-normal: 400;
+  --lf-weight-medium: 510;
+  --lf-weight-semibold: 600;
+  --lf-weight-bold: 700;
+
+  /* ---------- RADIUS ---------- */
+  --lf-radius-xs: 4px;
+  --lf-radius-sm: 6px;
+  --lf-radius-md: 8px;
+  --lf-radius-lg: 10px;
+  --lf-radius-xl: 12px;
+  --lf-radius-2xl: 16px;
+  --lf-radius-full: 9999px;
+
+  /* ---------- SPACING (4px base) ---------- */
+  --lf-space-0: 0;
+  --lf-space-1: 0.25rem; /* 4px */
+  --lf-space-2: 0.5rem; /* 8px */
+  --lf-space-3: 0.75rem; /* 12px */
+  --lf-space-4: 1rem; /* 16px */
+  --lf-space-5: 1.25rem; /* 20px */
+  --lf-space-6: 1.5rem; /* 24px */
+  --lf-space-8: 2rem; /* 32px */
+  --lf-space-10: 2.5rem; /* 40px */
+  --lf-space-12: 3rem; /* 48px */
+  --lf-space-16: 4rem; /* 64px */
+
+  /* ---------- SHADOWS (subtle, Linear-style) ---------- */
+  --lf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --lf-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --lf-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --lf-shadow-accent: 0 0 0 1px var(--lf-accent), 0 0 20px var(--lf-accent-glow);
+
+  /* ---------- TRANSITIONS ---------- */
+  --lf-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --lf-duration-fast: 120ms;
+  --lf-duration: 180ms;
+  --lf-duration-slow: 280ms;
+
+  /* ---------- Z-INDEX ---------- */
+  --lf-z-dropdown: 50;
+  --lf-z-sticky: 40;
+  --lf-z-modal: 100;
+  --lf-z-toast: 110;
+}
+
+/* Light mode override (optional, secondary) */
+[data-theme="light"] {
+  --lf-canvas: #f7f8f8;
+  --lf-surface-1: #ffffff;
+  --lf-surface-2: #f0f1f2;
+  --lf-surface-3: #e8e9eb;
+  --lf-surface-4: #dfe0e2;
+  --lf-surface-5: #d0d1d4;
+
+  --lf-border: #e5e5e6;
+  --lf-border-strong: #d0d6e0;
+  --lf-border-subtle: #ececed;
+
+  --lf-ink: #0f1011;
+  --lf-ink-muted: #2c2e33;
+  --lf-ink-subtle: #5a5f6b;
+  --lf-ink-faint: #8a8f98;
+
+  --lf-overlay: rgba(247, 248, 248, 0.8);
+  --lf-overlay-strong: rgba(247, 248, 248, 0.92);
+}

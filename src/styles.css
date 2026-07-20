@@ -1,0 +1,159 @@
+@import "./styles/tokens.css";
+@import "./styles/lummi.css";
+
+/* Scan this folder (src/) — do NOT use ../src (breaks Vite on Lovable) */
+@import "tailwindcss" source(none);
+@source ".";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --color-background: #010102;
+  --color-foreground: #f7f8f8;
+  --color-card: #0f1011;
+  --color-card-foreground: #f7f8f8;
+  --color-popover: #141516;
+  --color-popover-foreground: #f7f8f8;
+  --color-primary: #5e6ad2;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #18191a;
+  --color-secondary-foreground: #f7f8f8;
+  --color-muted: #18191a;
+  --color-muted-foreground: #8a8f98;
+  --color-accent: #5e6ad2;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #e01e2c;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #23252a;
+  --color-input: #23252a;
+  --color-ring: #5e6ad2;
+}
+
+:root {
+  --radius: 8px;
+  --background: #010102;
+  --foreground: #f7f8f8;
+  --card: #0f1011;
+  --card-foreground: #f7f8f8;
+  --popover: #141516;
+  --popover-foreground: #f7f8f8;
+  --primary: #5e6ad2;
+  --primary-foreground: #ffffff;
+  --secondary: #18191a;
+  --secondary-foreground: #f7f8f8;
+  --muted: #18191a;
+  --muted-foreground: #8a8f98;
+  --accent: #5e6ad2;
+  --accent-foreground: #ffffff;
+  --destructive: #e01e2c;
+  --destructive-foreground: #ffffff;
+  --border: #23252a;
+  --input: #23252a;
+  --ring: #5e6ad2;
+  --gradient-hero: linear-gradient(180deg, #0f1011 0%, #010102 100%);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: #010102 !important;
+    color: #f7f8f8 !important;
+    font-family: "Inter", "Inter Variable", system-ui, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ===== FORCE DARK CONTRAST FIXES ===== */
+input,
+textarea,
+select {
+  background-color: #141516 !important;
+  color: #f7f8f8 !important;
+  border-color: #23252a !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #62666d !important;
+}
+
+.bg-white,
+[class*="bg-white"] {
+  background-color: #141516 !important;
+  color: #f7f8f8 !important;
+}
+
+.bg-card {
+  background-color: #0f1011 !important;
+  color: #f7f8f8 !important;
+  border-color: #23252a !important;
+}
+
+button.rounded-full {
+  border-color: #34343a !important;
+}
+button.rounded-full:not([class*="bg-primary"]):not([class*="bg-foreground"]):not(
+    [class*="bg-gradient"]
+  ) {
+  background-color: #18191a !important;
+  color: #d0d6e0 !important;
+}
+button.rounded-full.bg-foreground,
+button.rounded-full[class*="bg-foreground"] {
+  background-color: #5e6ad2 !important;
+  color: #ffffff !important;
+  border-color: #5e6ad2 !important;
+}
+
+.text-foreground {
+  color: #f7f8f8 !important;
+}
+.text-muted-foreground {
+  color: #8a8f98 !important;
+}
+.text-white {
+  color: #f7f8f8 !important;
+}
+
+.bg-hero-gradient {
+  background: linear-gradient(180deg, #0f1011 0%, #010102 100%) !important;
+}
+
+button.bg-gradient-to-r {
+  background: linear-gradient(90deg, #5e6ad2 0%, #7b87e8 100%) !important;
+  box-shadow: 0 4px 20px rgba(94, 106, 210, 0.35) !important;
+}
+
+.bg-secondary,
+.bg-secondary\/40,
+.bg-secondary\/30 {
+  background-color: #18191a !important;
+}
+
+.border-border {
+  border-color: #23252a !important;
+}
+
+.divide-border > * + * {
+  border-color: #1a1b1e !important;
+}
+
+.rounded-3xl {
+  border-radius: 12px !important;
+  border: 1px solid #23252a !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #34343a;
+}
