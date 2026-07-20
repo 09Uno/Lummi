@@ -3,7 +3,7 @@
  * Strategies:
  *  1) DuckDuckGo HTML
  *  2) Bing HTML (fallback)
- * Primary discovery source; Gemini curates the raw hits into leads.
+ * Primary discovery source; Claude curates the raw hits into leads.
  */
 import { createHash } from "crypto";
 
@@ -307,7 +307,7 @@ export async function freeCompanySearch(opts: {
   return merged.slice(0, limit);
 }
 
-/** Format free hits as raw text for the Gemini curation prompt */
+/** Format free hits as raw text for the Claude curation prompt */
 export function freeHitsToRawText(hits: FreeSearchHit[]): string {
   if (!hits.length) return "Nenhum resultado bruto encontrado nas buscas gratuitas.";
   return hits

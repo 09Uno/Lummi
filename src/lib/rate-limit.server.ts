@@ -1,5 +1,5 @@
 // Rate limiter em memória (fixed window). Roda dentro do processo Node do container.
-// Serve pra chamadas caras (Gemini + scraping): impede um usuário sozinho de estourar
+// Serve pra chamadas caras (Claude + scraping): impede um usuário sozinho de estourar
 // quota / custo. Como o Lummi sobe como 1 container único na VPS, memória local basta.
 // Se um dia virar N réplicas, trocar por Redis (ou coalescer via reverse-proxy).
 

@@ -208,7 +208,7 @@ async function fetchPage(
 }
 
 // Bloqueia SSRF: hosts internos/privados, metadata cloud e nomes de container docker.
-// O scrapeSite recebe URLs vindas do Gemini (alucinação possível) — sem esta checagem,
+// O scrapeSite recebe URLs vindas do Claude (alucinação possível) — sem esta checagem,
 // um lead com website "http://169.254.169.254/..." vazaria metadata da instância cloud,
 // e "http://n8n:5678/..." bateria em outros stacks da mesma proxy-net na VPS.
 function isSafeExternalHost(hostname: string): boolean {

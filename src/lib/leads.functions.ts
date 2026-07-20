@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createHash } from "crypto";
-// removed: ai package (now using direct Gemini REST)
-import { getGeminiApiKey, callGemini } from "./ai-gateway.server";
+// AI backend: Anthropic Claude via REST (ver src/lib/ai-gateway.server.ts).
+import { getClaudeApiKey, callClaude } from "./ai-gateway.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { enrichLeadFree, extractCnpjsFromText, scrapeSite } from "./enrichment";
 import { freeCompanySearch, freeHitsToRawText } from "./free-search";
@@ -105,8 +105,8 @@ function hashFilters(f: {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function curateWithGemini(prompt: string): Promise<string> {
-  return callGemini({ prompt, temperature: 0.5 });
+async function curateWithClaude(prompt: string): Promise<string> {
+  return callClaude({ prompt, temperature: 0.5 });
 }
 
 function shufflePartially<T>(items: T[], shuffleRatio = 0.3, seed?: string): T[] {
@@ -175,9 +175,9 @@ export const generateLeads = createServerFn({ method: "POST" })
     log("begin", { userId: context.userId, quantidade: data.quantidade });
 
     try {
-      // Ensures Gemini is configured early with a clear error
-      const keyStep = await step("check_gemini_key", timings, async () => {
-        getGeminiApiKey();
+      // Ensures Claude is configured early with a clear error
+      const keyStep = await step("check_claude_key", timings, async () => {
+        getClaudeApiKey();
         return true;
       });
       if (!keyStep.ok) {
@@ -185,7 +185,7 @@ export const generateLeads = createServerFn({ method: "POST" })
           ok: false,
           leads: [],
           cached: false,
-          stage: "check_gemini_key",
+          stage: "check_claude_key",
           error: keyStep.error,
           timings,
         };
@@ -229,7 +229,7 @@ export const generateLeads = createServerFn({ method: "POST" })
         log("cache_skipped_by_user", { reason: "skipCache=true" });
       }
 
-      // Rate limit só quando cache não pega — vai chamar Gemini + scraping em N sites.
+      // Rate limit só quando cache não pega — vai chamar Claude + scraping em N sites.
       // 20 gerações/hora por usuário. Cache-hit não consome.
       const rl = checkRateLimit(userId, "generate_leads", 20, 60 * 60_000);
       if (!rl.ok) {
@@ -315,7 +315,7 @@ export const generateLeads = createServerFn({ method: "POST" })
       if (!rawText.trim()) rawText = `Nenhum resultado bruto para: ${query}`;
       rawText = `[motor_busca=free]\n\n${rawText}`;
 
-      // ============= 4) GEMINI =============
+      // ============= 4) CLAUDE =============
       const excludeBlock = excludeList.length
         ? `EMPRESAS JÁ ENTREGUES OU REJEITADAS (NUNCA repetir):\n${excludeList.join(", ")}`
         : "";
@@ -354,8 +354,8 @@ Inclua entre ${Math.max(data.quantidade, Math.ceil(data.quantidade * 1.3))} e ${
 ## Texto bruto
 ${rawText.slice(0, 16000)}`;
 
-      const geminiStep = await step("gemini_curate", timings, async () => {
-        const text = await curateWithGemini(prompt);
+      const curateStep = await step("claude_curate", timings, async () => {
+        const text = await curateWithClaude(prompt);
         let cleaned = text
           .replace(/^```json\s*/im, "")
           .replace(/^```\s*/im, "")
@@ -375,18 +375,18 @@ ${rawText.slice(0, 16000)}`;
         const validated = z.object({ leads: z.array(LeadSchema) }).parse(parsed);
         return validated.leads;
       });
-      if (!geminiStep.ok) {
+      if (!curateStep.ok) {
         return {
           ok: false,
           leads: [],
           cached: false,
-          stage: "gemini_curate",
-          error: geminiStep.error,
+          stage: "claude_curate",
+          error: curateStep.error,
           timings,
         };
       }
-      const parsedLeads = geminiStep.value;
-      log("gemini_result", { count: parsedLeads.length });
+      const parsedLeads = curateStep.value;
+      log("claude_result", { count: parsedLeads.length });
 
       // ============= 5) FILTRO =============
       const filtered = parsedLeads.filter((l) => {

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 // removed: ai package
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { callGemini } from "./ai-gateway.server";
+import { callClaude } from "./ai-gateway.server";
 import { mapAiToReport, normalizeCompanyKey, type CompanyReport } from "./lummi-data";
 import { checkRateLimit, rateLimitMessage } from "./rate-limit.server";
 
@@ -134,8 +134,8 @@ function extractJson(raw: string): unknown {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function callGeminiWithRetry(prompt: string): Promise<string> {
-  const text = await callGemini({ prompt, temperature: 0.1 });
+async function callClaudeWithRetry(prompt: string): Promise<string> {
+  const text = await callClaude({ prompt, temperature: 0.1 });
   if (!text?.trim()) throw new Error("Resposta vazia da IA");
   return text;
 }
@@ -194,7 +194,7 @@ export const generateIntelligenceReport = createServerFn({ method: "POST" })
       return { report: mapped, id: hit.id, createdAt: hit.created_at, cached: true };
     }
 
-    // Rate limit só quando vai chamar Gemini (cache-hit acima não conta).
+    // Rate limit só quando vai chamar Claude (cache-hit acima não conta).
     // 10 dossiês/hora por usuário: prompt gigante + fetch caro.
     const rl = checkRateLimit(userId, "intelligence_report", 10, 60 * 60_000);
     if (!rl.ok) {
@@ -203,14 +203,14 @@ export const generateIntelligenceReport = createServerFn({ method: "POST" })
 
     let content: string;
     try {
-      content = await callGeminiWithRetry(PROMPT_TEMPLATE(data.companyName));
+      content = await callClaudeWithRetry(PROMPT_TEMPLATE(data.companyName));
     } catch (err) {
       const msg = (err as Error).message ?? String(err);
-      const friendly = /429|rate|quota|RESOURCE_EXHAUSTED/i.test(msg)
-        ? "Limite de requisições do Gemini atingido. Tente novamente em instantes."
-        : /API key|API_KEY|ausente|invalid|403|PERMISSION/i.test(msg)
-          ? "Chave do Gemini inválida ou ausente. Verifique GEMINI_API_KEY no .env."
-          : `Falha ao contatar o Gemini: ${msg}`;
+      const friendly = /429|529|rate|quota|overloaded/i.test(msg)
+        ? "Limite de requisições do Claude atingido. Tente novamente em instantes."
+        : /API key|api.?key|ausente|invalid|401|403|authentication/i.test(msg)
+          ? "Chave do Claude inválida ou ausente. Verifique ANTHROPIC_API_KEY no .env."
+          : `Falha ao contatar o Claude: ${msg}`;
       throw new Error(friendly);
     }
 
@@ -218,7 +218,7 @@ export const generateIntelligenceReport = createServerFn({ method: "POST" })
     try {
       rawReport = extractJson(content) as Json;
     } catch (err) {
-      throw new Error(`JSON inválido retornado pelo Gemini: ${(err as Error).message}`);
+      throw new Error(`JSON inválido retornado pelo Claude: ${(err as Error).message}`);
     }
     validateReport(rawReport);
 

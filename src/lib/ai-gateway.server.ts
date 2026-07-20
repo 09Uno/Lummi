@@ -1,82 +1,82 @@
 /**
- * Google Gemini via REST API (no extra npm packages).
- * Works on Lovable with only GEMINI_API_KEY in Secrets.
+ * Anthropic Claude via REST API (sem SDK — evita deps extras).
+ * Preserva a mesma estrutura que existia com Gemini: fallback de modelos,
+ * retry em 429/503/529, timeout via AbortSignal, mensagens amigáveis.
  */
 
-export function getGeminiApiKey(): string {
-  const key =
-    process.env.GEMINI_API_KEY?.trim() ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-    process.env.GOOGLE_API_KEY?.trim() ||
-    "";
+export function getClaudeApiKey(): string {
+  const key = process.env.ANTHROPIC_API_KEY?.trim() || process.env.CLAUDE_API_KEY?.trim() || "";
   if (!key) {
-    throw new Error("Chave do Gemini ausente. Defina GEMINI_API_KEY nos Secrets do Lovable.");
+    throw new Error("Chave da Anthropic ausente. Defina ANTHROPIC_API_KEY no .env.");
   }
   return key;
 }
 
-/** Preferred model + fallbacks for API keys that can't access older IDs. */
-const GEMINI_MODEL_CANDIDATES = [
-  "gemini-3.5-flash",
-  "gemini-3-flash-preview",
-  "gemini-3-flash",
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
+/** Modelo preferido + fallbacks para o caso do principal estar indisponível. */
+const CLAUDE_MODEL_CANDIDATES = [
+  "claude-sonnet-4-6",
+  "claude-sonnet-4-5-20250929",
+  "claude-haiku-4-5-20251001",
 ] as const;
 
-export function getGeminiModelId(): string {
-  return process.env.GEMINI_MODEL?.trim() || GEMINI_MODEL_CANDIDATES[0];
+export function getClaudeModelId(): string {
+  return process.env.CLAUDE_MODEL?.trim() || CLAUDE_MODEL_CANDIDATES[0];
 }
 
 function modelCandidates(preferred?: string): string[] {
-  const primary = preferred?.trim() || getGeminiModelId();
-  const rest = GEMINI_MODEL_CANDIDATES.filter((m) => m !== primary);
+  const primary = preferred?.trim() || getClaudeModelId();
+  const rest = CLAUDE_MODEL_CANDIDATES.filter((m) => m !== primary);
   return [primary, ...rest];
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function isModelUnavailableError(msg: string): boolean {
-  return /no longer available|not found|not supported|is not found|INVALID_ARGUMENT.*model/i.test(
-    msg,
-  );
+  return /not_found_error|model.*not.*found|model.*not.*available|invalid.*model/i.test(msg);
 }
 
 /**
- * Calls Gemini generateContent and returns the text response.
- * Retries on rate-limit / transient errors and falls back to newer model IDs.
+ * Chama Claude Messages API e retorna a string de texto.
+ * Retry em rate limit / transient / overloaded (529) e fallback para modelos alternativos.
  */
-export async function callGemini(opts: {
+export async function callClaude(opts: {
   prompt: string;
   temperature?: number;
   apiKey?: string;
   model?: string;
+  maxTokens?: number;
 }): Promise<string> {
-  const apiKey = opts.apiKey ?? getGeminiApiKey();
+  const apiKey = opts.apiKey ?? getClaudeApiKey();
   const temperature = opts.temperature ?? 0.2;
+  const maxTokens = opts.maxTokens ?? 8192;
   const models = modelCandidates(opts.model);
 
   let lastError: unknown;
 
   for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const res = await fetch(url, {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: opts.prompt }] }],
-            generationConfig: { temperature },
+            model,
+            max_tokens: maxTokens,
+            temperature,
+            messages: [{ role: "user", content: opts.prompt }],
           }),
-          // Prompts longos (dossiê ~ 60s típ.). Sem signal, o worker Node
-          // fica pendurado se o Gemini travar a conexão.
-          signal: AbortSignal.timeout(90_000),
+          // Dossiê (~4kB prompt + 2k tokens saída) pode passar de 60s. Sem signal,
+          // o worker Node fica pendurado se a Anthropic travar a conexão.
+          signal: AbortSignal.timeout(120_000),
         });
 
-        if (res.status === 429 || res.status === 503) {
-          lastError = new Error(`Gemini HTTP ${res.status} (${model})`);
+        // 429 rate limit, 503 unavailable, 529 overloaded
+        if (res.status === 429 || res.status === 503 || res.status === 529) {
+          lastError = new Error(`Claude HTTP ${res.status} (${model})`);
           if (attempt < 2) {
             await sleep(2000 * (attempt + 1));
             continue;
@@ -85,23 +85,21 @@ export async function callGemini(opts: {
         }
 
         const json = (await res.json()) as {
-          error?: { message?: string; status?: string };
-          candidates?: Array<{
-            content?: { parts?: Array<{ text?: string }> };
-            finishReason?: string;
-          }>;
+          error?: { message?: string; type?: string };
+          content?: Array<{ type: string; text?: string }>;
+          stop_reason?: string;
         };
 
         if (!res.ok) {
-          const msg = json?.error?.message || `Gemini HTTP ${res.status}`;
+          const msg = json?.error?.message || `Claude HTTP ${res.status}`;
           lastError = new Error(`${msg} [${model}]`);
 
-          // Try next model if this ID is retired / unavailable for this key
+          // Modelo desativado / não encontrado — tenta o próximo da lista
           if (isModelUnavailableError(msg) || res.status === 404) {
             break;
           }
 
-          // Invalid API key / permission — don't keep trying other models forever
+          // Chave inválida / sem permissão — não adianta tentar outros modelos
           if (res.status === 401 || res.status === 403) {
             throw lastError;
           }
@@ -113,13 +111,14 @@ export async function callGemini(opts: {
           break;
         }
 
-        const text = json?.candidates?.[0]?.content?.parts
-          ?.map((p) => p.text ?? "")
+        const text = json?.content
+          ?.filter((c) => c.type === "text")
+          .map((c) => c.text ?? "")
           .join("")
           .trim();
 
         if (!text) {
-          lastError = new Error(`Resposta vazia do Gemini [${model}]`);
+          lastError = new Error(`Resposta vazia do Claude [${model}]`);
           break;
         }
         return text;
@@ -127,7 +126,9 @@ export async function callGemini(opts: {
         lastError = err;
         const msg = err instanceof Error ? err.message : String(err);
         if (isModelUnavailableError(msg)) break;
-        const retryable = /429|503|rate|quota|RESOURCE_EXHAUSTED|fetch|network/i.test(msg);
+        const retryable = /429|503|529|rate|quota|overloaded|fetch|network|timeout|aborted/i.test(
+          msg,
+        );
         if (!retryable || attempt === 2) break;
         await sleep(2000 * (attempt + 1));
       }
@@ -136,5 +137,5 @@ export async function callGemini(opts: {
 
   throw lastError instanceof Error
     ? lastError
-    : new Error(`Falha ao contatar o Gemini: ${String(lastError)}`);
+    : new Error(`Falha ao contatar Claude: ${String(lastError)}`);
 }
