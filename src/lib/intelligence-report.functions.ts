@@ -2,9 +2,33 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 // removed: ai package
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { callClaude } from "./ai-gateway.server";
+import { callClaude, type ClaudeWebSearchTool } from "./ai-gateway.server";
 import { mapAiToReport, normalizeCompanyKey, type CompanyReport } from "./lummi-data";
 import { checkRateLimit, rateLimitMessage } from "./rate-limit.server";
+
+// Sentinela retornada ao usuário quando não conseguimos confirmar um CNPJ real
+// (falha na busca ou dígito verificador inválido). Melhor um "não encontrado" honesto
+// do que um número plausível mas errado indo pra call comercial.
+const CNPJ_NOT_FOUND = "CNPJ não encontrado";
+
+/**
+ * Validação com dígito verificador conforme algoritmo oficial da Receita.
+ * Usada para descartar CNPJs alucinados pelo modelo antes de persistir o relatório.
+ */
+export function isValidCnpj(raw: string): boolean {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(digits)) return false;
+  const nums = digits.split("").map(Number);
+  const calc = (slice: number[], weights: number[]): number => {
+    const sum = slice.reduce((acc, n, i) => acc + n * weights[i], 0);
+    const mod = sum % 11;
+    return mod < 2 ? 0 : 11 - mod;
+  };
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  return calc(nums.slice(0, 12), w1) === nums[12] && calc(nums.slice(0, 13), w2) === nums[13];
+}
 
 const Input = z.object({ companyName: z.string().min(1).max(200) });
 const ByIdInput = z.object({ id: z.string().uuid() });
@@ -31,6 +55,20 @@ Produza um dossiê completo e confiável sobre a empresa abaixo para preparaçã
 [EMPRESA A INVESTIGAR]
 ${companyName}
 
+[USO DA WEB SEARCH — OBRIGATÓRIO]
+Você tem acesso à ferramenta web_search. Use-a ATIVAMENTE, não como último recurso. Triangule 3 pontos críticos:
+
+A. NOTÍCIAS RECENTES — busque explicitamente por: fusões e aquisições, rodadas de investimento, expansão geográfica, contratações relevantes, mudanças de liderança (novo CEO, CFO, CHRO, CTO). Consulte pelo menos 2 buscas diferentes (nome da empresa + "notícias 2026", nome + "M&A OR liderança OR expansão").
+
+B. CNPJ — busque ATIVAMENTE em fontes públicas confiáveis (Receita Federal, Casa dos Dados, Econodata, cnpj.biz). Não invente. Se cruzar duas fontes e os dígitos divergirem, considere não encontrado. Se não localizar em nenhuma fonte confiável, retorne EXATAMENTE a string "${CNPJ_NOT_FOUND}" no campo cnpj e registre em attentionPoints: "CNPJ não localizado em fontes públicas confiáveis — validar manualmente antes da call". O dígito verificador do CNPJ será validado automaticamente do lado do servidor: se você retornar um número inválido, ele será descartado.
+
+C. LOCALIZAÇÃO DA SEDE — este é o ponto MAIS problemático historicamente. Consulte ao menos 3 fontes: (1) site oficial (rodapé, página "Contato"/"Sobre"), (2) cadastro CNPJ (endereço da matriz na Receita), (3) LinkedIn corporativo (campo "Sede"). Regras:
+   - Se as 3 fontes concordarem, retorne a sede como string única no campo headquarters.
+   - Se houver DIVERGÊNCIA entre fontes (endereços diferentes), NÃO escolha uma sozinho: liste todas inline no campo headquarters no formato "Cidade/Estado — Endereço [fonte]; Cidade/Estado — Endereço [outra fonte]" e adicione em attentionPoints: "Divergência de sede entre fontes públicas: [lista das fontes divergentes] — confirmar na call".
+   - Se só uma fonte trouxer dado, registre a fonte inline: "Cidade/Estado (via site oficial)".
+
+Priorize consumir buscas nos itens A, B e C. Para o resto do dossiê (posicionamento, produtos, cultura, benefícios), a web search é opcional — use se agregar valor real.
+
 [RESTRIÇÕES E REGRAS]
 1. Validação obrigatória antes de afirmar qualquer coisa. Dados estruturais (fundação, missão) podem ser mais antigos.
 
@@ -52,16 +90,90 @@ ${companyName}
    - Em caso de conflito entre fontes, reporte de forma explícita (ex: "500+ (LinkedIn) — Glassdoor sugere ~200-300 na operação SP").
 
 4. Use apenas fontes primárias ou de alta credibilidade: site oficial, LinkedIn corporativo, releases, Glassdoor, Great Place to Work, Valor Econômico, Brazil Journal, Exame, Receita Federal.
-5. JAMAIS invente dados. Se algo não foi encontrado, retorne EXATAMENTE a string "Informação não localizada em fontes abertas" para campos string, [] para arrays e o valor "Inexistente" para maturidade educacional sem evidências.
+5. JAMAIS invente dados. Se algo não foi encontrado, retorne EXATAMENTE a string "Informação não localizada em fontes abertas" para campos string, [] para arrays e o valor "Inexistente" para maturidade educacional sem evidências. Para o CNPJ especificamente, use "${CNPJ_NOT_FOUND}" quando não localizado.
 6. Não use dados não públicos. Sem juízos de valor. Apenas evidências.
 7. Idioma: português do Brasil.
 
 [LÓGICA INTERNA — não exiba os passos, apenas aplique]
-1. Confirmação de identidade (CNPJ, razão social, nome fantasia, sede, fundação).
+1. Confirmação de identidade (CNPJ via web search em fontes públicas, razão social, nome fantasia, sede triangulada por múltiplas fontes, fundação).
 2. Raio-X (faturamento estimado, funcionários com fonte/data/confiança, setor, produtos, presença geográfica, posicionamento).
 3. Cultura e clima (Glassdoor, Indeed, LinkedIn, GPTW, ESG) com atenção a benefícios educacionais.
-4. Momento atual (notícias respeitando a regra de recência acima).
+4. Momento atual (notícias recentes via web search, respeitando a regra de recência acima).
 5. Síntese para abordagem consultiva.
+
+[EXEMPLO DE REFERÊNCIA — DOSSIÊ IDEAL]
+A empresa a seguir NÃO é a empresa a investigar. É um PADRÃO de qualidade e estrutura para você seguir. Note como: cada afirmação vem com fonte; CNPJ vem acompanhado da razão social; campos ausentes usam "Informação não localizada em fontes abertas" em vez de invenção; attentionPoints sinaliza explicitamente divergências, gaps e riscos; discoveryQuestions são abertas e conectadas aos achados; recommendedApproach cita fatos reais encontrados no próprio dossiê.
+
+Empresa do exemplo: "DRZ Corporation — Plataformas de Dados e IAs"
+
+Saída ideal:
+{
+  "companyName": "DRZ Corporation",
+  "tradeName": "DRZ Corporation",
+  "legalName": "DRZ Consultoria em Serviços de Informática Ltda",
+  "cnpj": "03.873.532/0001-21",
+  "website": "drzcorp.com.br",
+  "linkedinUrl": "https://www.linkedin.com/company/drzcorp",
+  "headquarters": "São Paulo/SP — R. Cláudio Soares, 72, Pinheiros (site oficial e cadastro CNPJ concordam)",
+  "foundedYear": "Informação não localizada em fontes abertas",
+  "employees": "51-200",
+  "employeeSource": "LinkedIn corporativo",
+  "employeeUpdatedAt": "Jul/2026",
+  "employeeConfidence": "Média",
+  "industry": "Consultoria e Plataformas de Dados e IA / Governança, Analytics e Inteligência Artificial",
+  "companySize": "Média",
+  "revenue": "Informação não localizada em fontes abertas",
+  "products": ["Smart Data Hub", "Smart Data Insights", "Smart Data & AI Governance", "Smart AI Platform", "Smart AI Fabric", "Smart Data RAG Layer", "Enriquecimento de Dados", "Assessment de Maturidade de Dados e IAs", "Revenda Precisely (Data Integrity Suite)", "Smart Car Sales (vertical automotivo)"],
+  "geographicPresence": "Escritórios próprios no Brasil, Argentina, Colômbia e EUA. Atuação declarada em múltiplos setores na América Latina e EUA.",
+  "marketPositioning": "Referência em transformação, gestão, governança e inteligência de dados/IA, com abordagem consultiva e parcerias estratégicas com Precisely, Microsoft e Google. Comunica +320% de ROI em até 18 meses, +200 profissionais credenciados e +50 clientes atendidos. Diferencial declarado: arquitetura API e schema-first com uso intenso de IA.",
+  "executiveSummary": "Empresa de consultoria e plataformas de dados/IA sediada em São Paulo com operação em quatro países (Brasil, Argentina, Colômbia, EUA) e time de 51-200 pessoas. Nenhum benefício educacional formalizado foi identificado publicamente — o que abre um espaço amplo, sem concorrência interna, para posicionar o EduHub como diferencial de retenção de talento técnico. Perfil fortemente técnico: engenheiros e cientistas de dados que valorizam desenvolvimento contínuo.",
+  "recentNews": [],
+  "generalBenefits": [],
+  "educationalBenefits": [],
+  "consultedChannels": [
+    { "channel": "Site oficial", "findings": "Sem seção de carreiras ou benefícios ao colaborador. Conteúdo voltado a marketing B2B de soluções." },
+    { "channel": "LinkedIn corporativo", "findings": "Sem menção a benefícios educacionais. ~2K seguidores." },
+    { "channel": "Glassdoor", "findings": "Sem avaliações relevantes localizadas." },
+    { "channel": "Notícias", "findings": "Sem cobertura recente localizada em fontes públicas." }
+  ],
+  "educationalMaturity": {
+    "level": "Inexistente",
+    "justification": "Não foram localizadas evidências públicas de benefícios educacionais (auxílio-estudo, bolsas, convênio com universidades, plataforma de e-learning) no site institucional ou no LinkedIn da DRZ. O conteúdo público é B2B, sem seção de carreiras/cultura interna."
+  },
+  "fit": {
+    "score": 9,
+    "opportunities": [
+      "Ausência total de programa educacional formalizado = espaço de entrada sem concorrência interna.",
+      "Perfil de empresa de tecnologia/consultoria tende a valorizar benefício de capacitação como retenção de talento técnico (alta rotatividade no setor).",
+      "Presença internacional favorece adoção de plataforma digital sem necessidade de estrutura física."
+    ],
+    "risks": [
+      "Estrutura de RH/People não identificada publicamente — não está claro quem é o decisor.",
+      "Empresa B2B de consultoria pode priorizar investimento em vendas/tecnologia sobre benefícios.",
+      "Baixo volume de dados públicos sobre cultura interna real — risco de premissas incorretas na abordagem."
+    ]
+  },
+  "recommendedApproach": [
+    "Conectar a proposta ao perfil dos profissionais da DRZ: empresa de tecnologia/dados/IA com forte presença de talento técnico especializado (engenheiros de dados, cientistas de dados, arquitetos) — perfil que valoriza desenvolvimento contínuo.",
+    "Usar a presença internacional (Brasil, Argentina, Colômbia, EUA) como gancho: o benefício de elegibilidade familiar do EduHub pode ser um diferencial para empresas com operação multi-país e equipes distribuídas.",
+    "Como não há benefício educacional identificado, posicionar o EduHub como algo inédito e sem concorrente interno a ser deslocado — abertura total no espaço."
+  ],
+  "attentionPoints": [
+    "CNPJ 03.873.532/0001-21 confirmado via Econodata — razão social 'DRZ Consultoria em Serviços de Informática Ltda' difere do nome fantasia 'DRZ Corporation'. Validar na Receita Federal antes da reunião.",
+    "Sem notícias relevantes encontradas nos últimos 12 meses em fontes abertas.",
+    "Estrutura de RH/People não identificada publicamente — verificar no LinkedIn quem ocupa esse papel antes da call.",
+    "Faturamento e data exata de fundação não localizados em nenhuma fonte pública.",
+    "Não há certificação GPTW ou similar identificada.",
+    "Data de fundação estimada por inferência do texto do site institucional ('+10 anos de mercado') — não é dado confirmado, apenas aproximação."
+  ],
+  "discoveryQuestions": [
+    "Hoje, quando um colaborador da DRZ quer se desenvolver — seja fazer uma pós, uma certificação técnica ou aprender um novo idioma — como a empresa apoia isso formalmente?",
+    "Com a atuação em múltiplos países, como vocês pensam em benefícios que façam sentido pra times distribuídos no Brasil, Argentina, Colômbia e EUA?",
+    "Existe alguma iniciativa de capacitação técnica ou educacional que vocês gostariam de estruturar mas ainda não tiveram tempo ou recurso?"
+  ],
+  "dataCoverage": "Fontes consultadas: site institucional, LinkedIn corporativo, Econodata (para CNPJ), Glassdoor. Período: últimos 12 meses para notícias, snapshot atual para dados estruturais. Baixo volume de dados públicos sobre cultura interna — abordagem exige descoberta ativa na call."
+}
+[FIM DO EXEMPLO]
 
 [FORMATO DE SAÍDA — OBRIGATÓRIO]
 Retorne APENAS um JSON válido, sem markdown, sem blocos de código, sem texto fora do JSON. Estrutura exata:
@@ -70,10 +182,10 @@ Retorne APENAS um JSON válido, sem markdown, sem blocos de código, sem texto f
   "companyName": "nome principal encontrado",
   "tradeName": "nome fantasia",
   "legalName": "razão social",
-  "cnpj": "CNPJ formatado ou vazio se não encontrado",
+  "cnpj": "CNPJ formatado (00.000.000/0000-00) ou '${CNPJ_NOT_FOUND}' se não localizado em fontes públicas confiáveis",
   "website": "domínio sem https://",
   "linkedinUrl": "URL completa do LinkedIn corporativo",
-  "headquarters": "Cidade/Estado da sede",
+  "headquarters": "Cidade/Estado da sede — com fonte inline; se divergência entre fontes, liste todas",
   "foundedYear": "ano de fundação como string",
   "employees": "número ou intervalo (ex: '2.500' ou '1.500-2.000')",
   "employeeSource": "LinkedIn | Glassdoor | Balanço 2025 | Site de carreiras | etc.",
@@ -108,7 +220,7 @@ Retorne APENAS um JSON válido, sem markdown, sem blocos de código, sem texto f
     "risks": ["3-5 riscos/objeções potenciais baseados nos achados"]
   },
   "recommendedApproach": ["2-3 pontos de conexão para a abordagem, citando fatos reais encontrados"],
-  "attentionPoints": ["lacunas de informação, avisos de recência de notícias, riscos ou tópicos sensíveis a evitar"],
+  "attentionPoints": ["lacunas de informação, avisos de recência de notícias, divergências entre fontes, riscos ou tópicos sensíveis a evitar"],
   "discoveryQuestions": ["3-4 perguntas abertas para call de descoberta sobre desenvolvimento e benefícios"],
   "dataCoverage": "resumo da abrangência temporal e tipos de fonte consultadas"
 }`;
@@ -134,10 +246,53 @@ function extractJson(raw: string): unknown {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Web search da Anthropic. max_uses alto para permitir triangulação nos 3 pontos críticos
+// (notícias, CNPJ, sede) mais uma sobra para consultas laterais durante o dossiê.
+const INTELLIGENCE_WEB_SEARCH_TOOL: ClaudeWebSearchTool = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 12,
+};
+
+// Buffer para triangulação: prompt já passa dos 10k chars, e a resposta com múltiplas
+// notícias detalhadas ultrapassa fácil os 8k tokens padrão. Sonnet 4.6 aguenta bem mais.
+const INTELLIGENCE_MAX_TOKENS = 16000;
+
+// Web search dispara múltiplas buscas HTTP dentro do turno — ampliar timeout para acomodar.
+const INTELLIGENCE_TIMEOUT_MS = 240_000;
+
 async function callClaudeWithRetry(prompt: string): Promise<string> {
-  const text = await callClaude({ prompt, temperature: 0.1 });
+  const text = await callClaude({
+    prompt,
+    temperature: 0.1,
+    tools: [INTELLIGENCE_WEB_SEARCH_TOOL],
+    maxTokens: INTELLIGENCE_MAX_TOKENS,
+    timeoutMs: INTELLIGENCE_TIMEOUT_MS,
+  });
   if (!text?.trim()) throw new Error("Resposta vazia da IA");
   return text;
+}
+
+/**
+ * Descarta CNPJ inválido gerado pelo modelo. Se o dígito verificador não bater, substitui
+ * pela sentinela ${CNPJ_NOT_FOUND} e adiciona um attentionPoint. Isso protege contra
+ * alucinação mesmo com web search ativa — o modelo pode ler o CNPJ certo mas trocar um dígito.
+ */
+function enforceCnpjIntegrity(report: Record<string, unknown>): void {
+  const raw = typeof report.cnpj === "string" ? report.cnpj.trim() : "";
+  if (!raw) return;
+  const digits = raw.replace(/\D/g, "");
+  // "CNPJ não encontrado" ou variantes de "não localizado" — deixa como está.
+  if (digits.length === 0) return;
+  if (isValidCnpj(raw)) return;
+  report.cnpj = CNPJ_NOT_FOUND;
+  const currentPoints = Array.isArray(report.attentionPoints)
+    ? (report.attentionPoints as unknown[]).map((p) => String(p))
+    : [];
+  currentPoints.push(
+    `CNPJ retornado pela IA falhou na validação de dígito verificador (${raw}) — campo zerado automaticamente. Confirmar manualmente na Receita Federal.`,
+  );
+  report.attentionPoints = currentPoints;
 }
 
 function validateReport(report: unknown): asserts report is Record<string, unknown> {
@@ -221,6 +376,7 @@ export const generateIntelligenceReport = createServerFn({ method: "POST" })
       throw new Error(`JSON inválido retornado pelo Claude: ${(err as Error).message}`);
     }
     validateReport(rawReport);
+    enforceCnpjIntegrity(rawReport);
 
     const { data: inserted, error } = await supabase
       .from("intelligence_reports")

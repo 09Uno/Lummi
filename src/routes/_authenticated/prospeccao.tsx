@@ -563,19 +563,44 @@ function Index() {
   }
 
   async function onIntelligence(empresa: string) {
+    // Pré-abre a aba SÍNCRONO, dentro do gesto do clique. A geração leva 60-180s e,
+    // se abrirmos a aba depois do await, o popup blocker do navegador silencia o
+    // window.open e o usuário fica sem feedback (a lista de leads permanece, mas a
+    // aba do relatório nunca aparece). Também não usamos "noopener" porque precisamos
+    // manter a referência para redirecionar quando o id chegar; anulamos o opener na sequência.
+    const win = typeof window !== "undefined" ? window.open("", "_blank") : null;
+    if (win) {
+      win.opener = null;
+      const safeName = empresa
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+      win.document.write(
+        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Gerando dossiê — ${safeName}</title><style>body{background:#010102;color:#f7f8f8;font:14px system-ui,sans-serif;margin:0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}.spin{width:36px;height:36px;border:3px solid #23252a;border-top-color:#5e6ad2;border-radius:50%;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}</style></head><body><div class="spin"></div><div>Gerando dossiê de <strong>${safeName}</strong>…</div><div style="color:#8a8f98;font-size:12px">Isso pode levar até 3 minutos com web search ativa.</div></body></html>`,
+      );
+      win.document.close();
+    }
+
     setIntelligencePending((m) => ({ ...m, [empresa]: true }));
     try {
       const res = await intelligenceFn({
         data: { companyName: empresa, sourceLeadEmpresa: empresa },
       });
-      // Abre relatório em nova aba conforme requisito de UX
       const url = `/inteligencia/relatorio?id=${encodeURIComponent(res.id)}`;
-      if (typeof window !== "undefined") {
-        window.open(url, "_blank", "noopener,noreferrer");
+      if (win && !win.closed) {
+        win.location.replace(url);
+      } else if (typeof window !== "undefined") {
+        // Fallback: popup bloqueado desde o início. Abrir agora provavelmente também
+        // será bloqueado, mas tentamos — se falhar, navegamos na aba atual.
+        const fallback = window.open(url, "_blank", "noopener,noreferrer");
+        if (!fallback) navigate({ to: "/inteligencia/relatorio", search: { id: res.id } });
       } else {
         navigate({ to: "/inteligencia/relatorio", search: { id: res.id } });
       }
     } catch (e) {
+      if (win && !win.closed) win.close();
       alert(e instanceof Error ? e.message : "Erro ao gerar dossiê");
     } finally {
       setIntelligencePending((m) => ({ ...m, [empresa]: false }));

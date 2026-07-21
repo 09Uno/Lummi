@@ -36,8 +36,23 @@ function isModelUnavailableError(msg: string): boolean {
 }
 
 /**
+ * Ferramenta server-side de web search da Anthropic. É executada pela própria API
+ * — o modelo dispara buscas durante o turno e recebe os resultados sem round-trip.
+ * Passamos como opção para não obrigar todo caller a usar.
+ */
+export interface ClaudeWebSearchTool {
+  type: "web_search_20250305";
+  name: "web_search";
+  max_uses?: number;
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+}
+
+/**
  * Chama Claude Messages API e retorna a string de texto.
  * Retry em rate limit / transient / overloaded (529) e fallback para modelos alternativos.
+ * Se `tools` for informado, o modelo pode usá-las durante a resposta — extraímos apenas
+ * os blocos `text` do content array final (ignora server_tool_use / web_search_tool_result).
  */
 export async function callClaude(opts: {
   prompt: string;
@@ -45,10 +60,13 @@ export async function callClaude(opts: {
   apiKey?: string;
   model?: string;
   maxTokens?: number;
+  tools?: ClaudeWebSearchTool[];
+  timeoutMs?: number;
 }): Promise<string> {
   const apiKey = opts.apiKey ?? getClaudeApiKey();
   const temperature = opts.temperature ?? 0.2;
   const maxTokens = opts.maxTokens ?? 8192;
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   const models = modelCandidates(opts.model);
 
   let lastError: unknown;
@@ -56,6 +74,14 @@ export async function callClaude(opts: {
   for (const model of models) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        const body: Record<string, unknown> = {
+          model,
+          max_tokens: maxTokens,
+          temperature,
+          messages: [{ role: "user", content: opts.prompt }],
+        };
+        if (opts.tools?.length) body.tools = opts.tools;
+
         const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
@@ -63,15 +89,10 @@ export async function callClaude(opts: {
             "x-api-key": apiKey,
             "anthropic-version": "2023-06-01",
           },
-          body: JSON.stringify({
-            model,
-            max_tokens: maxTokens,
-            temperature,
-            messages: [{ role: "user", content: opts.prompt }],
-          }),
-          // Dossiê (~4kB prompt + 2k tokens saída) pode passar de 60s. Sem signal,
-          // o worker Node fica pendurado se a Anthropic travar a conexão.
-          signal: AbortSignal.timeout(120_000),
+          body: JSON.stringify(body),
+          // Dossiê com web search pode disparar múltiplas buscas antes da resposta final.
+          // Sem signal, o worker Node fica pendurado se a Anthropic travar a conexão.
+          signal: AbortSignal.timeout(timeoutMs),
         });
 
         // 429 rate limit, 503 unavailable, 529 overloaded
