@@ -101,32 +101,34 @@ Priorize consumir buscas nos itens A, B e C. Para o resto do dossiê (posicionam
 4. Momento atual (notícias recentes via web search, respeitando a regra de recência acima).
 5. Síntese para abordagem consultiva.
 
-[EXEMPLO DE REFERÊNCIA — DOSSIÊ IDEAL]
-A empresa a seguir NÃO é a empresa a investigar. É um PADRÃO de qualidade e estrutura para você seguir. Note como: cada afirmação vem com fonte; CNPJ vem acompanhado da razão social; campos ausentes usam "Informação não localizada em fontes abertas" em vez de invenção; attentionPoints sinaliza explicitamente divergências, gaps e riscos; discoveryQuestions são abertas e conectadas aos achados; recommendedApproach cita fatos reais encontrados no próprio dossiê.
+[EXEMPLO DE REFERÊNCIA — DOSSIÊ IDEAL (empresa FICTÍCIA)]
+A empresa abaixo é 100% FICTÍCIA e existe apenas como PADRÃO de qualidade e estrutura para você seguir. NÃO É a empresa a investigar. JAMAIS copie dados deste exemplo para o dossiê real. Se por acaso a empresa a investigar tiver nome parecido com "ACME Tech" ou "ACME Consultoria em Tecnologia Industrial Ltda", ignore completamente este exemplo e investigue via web search normalmente.
 
-Empresa do exemplo: "DRZ Corporation — Plataformas de Dados e IAs"
+Note no exemplo como: cada afirmação vem com fonte; CNPJ vem acompanhado da razão social; campos ausentes usam "Informação não localizada em fontes abertas" em vez de invenção; attentionPoints sinaliza explicitamente divergências, gaps e riscos; discoveryQuestions são abertas e conectadas aos achados; recommendedApproach cita fatos reais encontrados no próprio dossiê.
+
+Empresa do exemplo (FICTÍCIA): "ACME Tech — Plataformas de Automação Industrial"
 
 Saída ideal:
 {
-  "companyName": "DRZ Corporation",
-  "tradeName": "DRZ Corporation",
-  "legalName": "DRZ Consultoria em Serviços de Informática Ltda",
-  "cnpj": "03.873.532/0001-21",
-  "website": "drzcorp.com.br",
-  "linkedinUrl": "https://www.linkedin.com/company/drzcorp",
-  "headquarters": "São Paulo/SP — R. Cláudio Soares, 72, Pinheiros (site oficial e cadastro CNPJ concordam)",
+  "companyName": "ACME Tech",
+  "tradeName": "ACME Tech",
+  "legalName": "ACME Consultoria em Tecnologia Industrial Ltda",
+  "cnpj": "12.345.678/0001-90",
+  "website": "acmetech.exemplo.com.br",
+  "linkedinUrl": "https://www.linkedin.com/company/acmetech-exemplo",
+  "headquarters": "Campinas/SP — Av. Exemplo Fictício, 1234, Cambuí (site oficial e cadastro CNPJ concordam)",
   "foundedYear": "Informação não localizada em fontes abertas",
   "employees": "51-200",
   "employeeSource": "LinkedIn corporativo",
   "employeeUpdatedAt": "Jul/2026",
   "employeeConfidence": "Média",
-  "industry": "Consultoria e Plataformas de Dados e IA / Governança, Analytics e Inteligência Artificial",
+  "industry": "Automação Industrial e Manufatura Digital / Integração de Sistemas de Chão de Fábrica",
   "companySize": "Média",
   "revenue": "Informação não localizada em fontes abertas",
-  "products": ["Smart Data Hub", "Smart Data Insights", "Smart Data & AI Governance", "Smart AI Platform", "Smart AI Fabric", "Smart Data RAG Layer", "Enriquecimento de Dados", "Assessment de Maturidade de Dados e IAs", "Revenda Precisely (Data Integrity Suite)", "Smart Car Sales (vertical automotivo)"],
-  "geographicPresence": "Escritórios próprios no Brasil, Argentina, Colômbia e EUA. Atuação declarada em múltiplos setores na América Latina e EUA.",
-  "marketPositioning": "Referência em transformação, gestão, governança e inteligência de dados/IA, com abordagem consultiva e parcerias estratégicas com Precisely, Microsoft e Google. Comunica +320% de ROI em até 18 meses, +200 profissionais credenciados e +50 clientes atendidos. Diferencial declarado: arquitetura API e schema-first com uso intenso de IA.",
-  "executiveSummary": "Empresa de consultoria e plataformas de dados/IA sediada em São Paulo com operação em quatro países (Brasil, Argentina, Colômbia, EUA) e time de 51-200 pessoas. Nenhum benefício educacional formalizado foi identificado publicamente — o que abre um espaço amplo, sem concorrência interna, para posicionar o EduHub como diferencial de retenção de talento técnico. Perfil fortemente técnico: engenheiros e cientistas de dados que valorizam desenvolvimento contínuo.",
+  "products": ["Plataforma de MES próprio", "Integradora de PLCs multi-fabricante", "Módulo de OEE em tempo real", "Consultoria em Indústria 4.0", "Retrofit de linhas industriais"],
+  "geographicPresence": "Escritórios em Campinas (matriz) e Belo Horizonte. Atendimento declarado em plantas industriais no Brasil, Paraguai e Chile.",
+  "marketPositioning": "Integradora média focada em manufatura discreta e processos contínuos, com abordagem consultiva e parcerias declaradas com fabricantes de PLCs. Comunica redução média de 18% em paradas não planejadas nos cases publicados. Diferencial declarado: stack próprio de coleta agnóstico ao fabricante do PLC.",
+  "executiveSummary": "Integradora de automação industrial sediada em Campinas com operação em três países latino-americanos e time de 51-200 pessoas. Nenhum benefício educacional formalizado foi identificado publicamente — o que abre um espaço amplo, sem concorrência interna, para posicionar o EduHub como diferencial de retenção de engenheiros de automação e desenvolvedores. Perfil técnico: engenheiros de controle e programadores de PLC/MES que valorizam certificação e desenvolvimento contínuo.",
   "recentNews": [],
   "generalBenefits": [],
   "educationalBenefits": [],
@@ -138,40 +140,39 @@ Saída ideal:
   ],
   "educationalMaturity": {
     "level": "Inexistente",
-    "justification": "Não foram localizadas evidências públicas de benefícios educacionais (auxílio-estudo, bolsas, convênio com universidades, plataforma de e-learning) no site institucional ou no LinkedIn da DRZ. O conteúdo público é B2B, sem seção de carreiras/cultura interna."
+    "justification": "Não foram localizadas evidências públicas de benefícios educacionais (auxílio-estudo, bolsas, convênio com universidades, plataforma de e-learning) no site institucional ou no LinkedIn da ACME Tech. O conteúdo público é B2B, sem seção de carreiras/cultura interna."
   },
   "fit": {
     "score": 9,
     "opportunities": [
       "Ausência total de programa educacional formalizado = espaço de entrada sem concorrência interna.",
-      "Perfil de empresa de tecnologia/consultoria tende a valorizar benefício de capacitação como retenção de talento técnico (alta rotatividade no setor).",
-      "Presença internacional favorece adoção de plataforma digital sem necessidade de estrutura física."
+      "Perfil de integradora industrial tende a valorizar certificação técnica (fabricantes de PLC/SCADA) como benefício de retenção.",
+      "Operação multi-país favorece adoção de plataforma digital sem necessidade de estrutura física em cada praça."
     ],
     "risks": [
       "Estrutura de RH/People não identificada publicamente — não está claro quem é o decisor.",
-      "Empresa B2B de consultoria pode priorizar investimento em vendas/tecnologia sobre benefícios.",
+      "Integradora B2B pode priorizar investimento em ferramental e certificação de fabricantes sobre benefícios educacionais amplos.",
       "Baixo volume de dados públicos sobre cultura interna real — risco de premissas incorretas na abordagem."
     ]
   },
   "recommendedApproach": [
-    "Conectar a proposta ao perfil dos profissionais da DRZ: empresa de tecnologia/dados/IA com forte presença de talento técnico especializado (engenheiros de dados, cientistas de dados, arquitetos) — perfil que valoriza desenvolvimento contínuo.",
-    "Usar a presença internacional (Brasil, Argentina, Colômbia, EUA) como gancho: o benefício de elegibilidade familiar do EduHub pode ser um diferencial para empresas com operação multi-país e equipes distribuídas.",
+    "Conectar a proposta ao perfil dos profissionais da ACME Tech: engenheiros de automação e desenvolvedores de MES/SCADA — perfil que valoriza certificação técnica e desenvolvimento contínuo.",
+    "Usar a operação multi-país (Brasil, Paraguai, Chile) como gancho: o benefício de elegibilidade familiar do EduHub pode ser diferencial para empresas com equipes distribuídas em plantas industriais.",
     "Como não há benefício educacional identificado, posicionar o EduHub como algo inédito e sem concorrente interno a ser deslocado — abertura total no espaço."
   ],
   "attentionPoints": [
-    "CNPJ 03.873.532/0001-21 confirmado via Econodata — razão social 'DRZ Consultoria em Serviços de Informática Ltda' difere do nome fantasia 'DRZ Corporation'. Validar na Receita Federal antes da reunião.",
+    "CNPJ do exemplo é fictício — em dossiê real, sempre confirmar via Receita Federal antes da reunião.",
     "Sem notícias relevantes encontradas nos últimos 12 meses em fontes abertas.",
     "Estrutura de RH/People não identificada publicamente — verificar no LinkedIn quem ocupa esse papel antes da call.",
     "Faturamento e data exata de fundação não localizados em nenhuma fonte pública.",
-    "Não há certificação GPTW ou similar identificada.",
-    "Data de fundação estimada por inferência do texto do site institucional ('+10 anos de mercado') — não é dado confirmado, apenas aproximação."
+    "Não há certificação GPTW ou similar identificada."
   ],
   "discoveryQuestions": [
-    "Hoje, quando um colaborador da DRZ quer se desenvolver — seja fazer uma pós, uma certificação técnica ou aprender um novo idioma — como a empresa apoia isso formalmente?",
-    "Com a atuação em múltiplos países, como vocês pensam em benefícios que façam sentido pra times distribuídos no Brasil, Argentina, Colômbia e EUA?",
+    "Hoje, quando um engenheiro da ACME Tech quer se desenvolver — seja tirar uma certificação de fabricante, fazer uma pós ou aprender um novo idioma — como a empresa apoia isso formalmente?",
+    "Com a atuação em plantas em três países, como vocês pensam em benefícios que façam sentido pra times de campo distribuídos?",
     "Existe alguma iniciativa de capacitação técnica ou educacional que vocês gostariam de estruturar mas ainda não tiveram tempo ou recurso?"
   ],
-  "dataCoverage": "Fontes consultadas: site institucional, LinkedIn corporativo, Econodata (para CNPJ), Glassdoor. Período: últimos 12 meses para notícias, snapshot atual para dados estruturais. Baixo volume de dados públicos sobre cultura interna — abordagem exige descoberta ativa na call."
+  "dataCoverage": "Fontes consultadas: site institucional, LinkedIn corporativo, Glassdoor. Período: últimos 12 meses para notícias, snapshot atual para dados estruturais. Baixo volume de dados públicos sobre cultura interna — abordagem exige descoberta ativa na call."
 }
 [FIM DO EXEMPLO]
 
