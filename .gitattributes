@@ -1,0 +1,13 @@
+# O Prettier deste projeto usa endOfLine "lf" (default). Sem esta declaração, o
+# Git no Windows (core.autocrlf=true) materializa a cópia de trabalho em CRLF e
+# `npm run lint` passa a acusar milhares de erros "Delete ␍" — mesmo com o
+# conteúdo commitado correto, que está todo em LF.
+#
+# text=auto: o Git detecta o que é texto e não mexe em binário (favicon etc.).
+# eol=lf: a cópia de trabalho sai em LF em qualquer sistema.
+* text=auto eol=lf
+
+# Lockfiles e artefatos gerados: sempre LF, nunca tratados como texto editável.
+bun.lock          -diff linguist-generated
+package-lock.json -diff linguist-generated
+src/routeTree.gen.ts -diff linguist-generated
