@@ -140,19 +140,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reload = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    await applySession(data.session, { soft: false });
+    try {
+      const { data } = await supabase.auth.getSession();
+      await applySession(data.session, { soft: false });
+    } catch (err) {
+      console.error("[Auth] reload() falhou:", err);
+      setState({
+        user: null,
+        role: null,
+        isAuthenticated: false,
+        isLoading: false,
+        accessDenied: false,
+        ready: true,
+      });
+    }
   }, [applySession]);
 
   useEffect(() => {
     let active = true;
 
     // 1) Bootstrap inicial — getSession é seguro fora do callback de onAuthStateChange
+    //    IMPORTANTE: se getSession() rejeitar (env var ausente/errada, projeto Supabase
+    //    inacessível, CORS, etc.), sem este try/catch a Promise fica unhandled e o
+    //    estado nunca sai de isLoading:true/ready:false — spinner infinito e silencioso.
     void (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-      await applySession(data.session, { soft: false });
-      bootstrapped.current = true;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        await applySession(data.session, { soft: false });
+        bootstrapped.current = true;
+      } catch (err) {
+        if (!active) return;
+        console.error("[Auth] Falha ao inicializar sessão (getSession):", err);
+        setState({
+          user: null,
+          role: null,
+          isAuthenticated: false,
+          isLoading: false,
+          accessDenied: false,
+          ready: true,
+        });
+      }
     })();
 
     // 2) Listener — NUNCA chamar getSession dentro do callback síncrono.
