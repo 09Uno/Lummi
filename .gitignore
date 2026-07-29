@@ -16,11 +16,6 @@ dist-ssr
 .nitro
 *.local
 
-# Env files — nunca versionar segredos. Use .env.example como template.
-.env
-.env.*
-!.env.example
-
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
