@@ -7,7 +7,9 @@
 # eol=lf: a cópia de trabalho sai em LF em qualquer sistema.
 * text=auto eol=lf
 
-# Lockfiles e artefatos gerados: sempre LF, nunca tratados como texto editável.
-bun.lock          -diff linguist-generated
-package-lock.json -diff linguist-generated
-src/routeTree.gen.ts -diff linguist-generated
+# Arquivos gerados: o GitHub colapsa o diff por padrão, mas ele CONTINUA legível.
+# Não use `-diff` em lockfile: isso o trata como binário e esconde a entrada de
+# uma dependência nova na revisão, que é justamente o que precisa ser visto.
+bun.lock             linguist-generated
+package-lock.json    linguist-generated
+src/routeTree.gen.ts linguist-generated
