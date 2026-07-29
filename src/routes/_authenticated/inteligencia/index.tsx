@@ -1,10 +1,16 @@
+import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
+import { MODULE_ROLES } from "@/lib/rbac/types";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Loader2, Search, History, Sparkles, Star } from "lucide-react";
 import { useIntelligenceHistory } from "@/hooks/useIntelligenceHistory";
 
 export const Route = createFileRoute("/_authenticated/inteligencia/")({
-  component: IntelligenceHome,
+  component: () => (
+    <ProtectedRoute requiredRoles={MODULE_ROLES.inteligencia}>
+      <IntelligenceHome />
+    </ProtectedRoute>
+  ),
 });
 
 function IntelligenceHome() {
@@ -74,7 +80,7 @@ function IntelligenceHome() {
               type="button"
               onClick={onGenerate}
               disabled={!companyName.trim() || generate.isPending}
-              className="inline-flex items-center gap-2 px-5 h-12 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-[oklch(0.65_0.24_15)] via-[oklch(0.55_0.26_340)] to-[oklch(0.5_0.24_290)] disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 h-12 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-[#072A31] via-[#0F4C5C] to-[#2E7A85] disabled:opacity-50"
             >
               {generate.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

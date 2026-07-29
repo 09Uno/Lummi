@@ -1,12 +1,11 @@
 /* ============================================================
-   Lummi Global Styles
-   Drop this into your app (after tokens.css)
-   Tailwind v4 + custom utilities for dense Linear-like UI
+   Code to You Tech × LeadForge Global Styles
+   Tokens em tokens.css · Tipografia Publica Sans / Outfit
    ============================================================ */
 
 @import "./tokens.css";
 
-/* Inter font is loaded via <link> in src/routes/__root.tsx head() */
+/* Outfit is loaded via <link> in src/routes/__root.tsx head() */
 
 /* ---------- BASE ---------- */
 *,
@@ -22,7 +21,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "cv01", "ss03"; /* Linear-style alternates */
+  font-feature-settings: "kern" 1;
 }
 
 body {
@@ -248,7 +247,7 @@ body {
 
 .lf-chip-accent {
   background: color-mix(in srgb, var(--lf-accent) 18%, transparent);
-  color: #a5b0ff;
+  color: #7fb0b4;
   border-color: color-mix(in srgb, var(--lf-accent) 35%, transparent);
 }
 
@@ -365,6 +364,7 @@ body {
   border: 1px solid var(--lf-border);
   border-radius: var(--lf-radius-md);
   padding: 16px;
+  box-shadow: var(--lf-shadow-sm);
 }
 
 /* ---------- HERO TOOL STYLE (priority #4) ---------- */

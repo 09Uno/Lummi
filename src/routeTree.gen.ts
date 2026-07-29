@@ -13,7 +13,12 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
+import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedProspeccaoRouteImport } from './routes/_authenticated/prospeccao'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedInteligenciaIndexRouteImport } from './routes/_authenticated/inteligencia/index'
 import { Route as AuthenticatedInteligenciaRelatorioRouteImport } from './routes/_authenticated/inteligencia/relatorio'
 import { Route as AuthenticatedInteligenciaHistoricoRouteImport } from './routes/_authenticated/inteligencia/historico'
@@ -37,9 +42,35 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProspeccaoRoute = AuthenticatedProspeccaoRouteImport.update({
   id: '/prospeccao',
   path: '/prospeccao',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedInteligenciaIndexRoute =
@@ -65,7 +96,12 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/tarefas': typeof AuthenticatedTarefasRoute
   '/inteligencia/historico': typeof AuthenticatedInteligenciaHistoricoRoute
   '/inteligencia/relatorio': typeof AuthenticatedInteligenciaRelatorioRoute
   '/inteligencia/': typeof AuthenticatedInteligenciaIndexRoute
@@ -73,7 +109,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/tarefas': typeof AuthenticatedTarefasRoute
   '/': typeof AuthenticatedIndexRoute
   '/inteligencia/historico': typeof AuthenticatedInteligenciaHistoricoRoute
   '/inteligencia/relatorio': typeof AuthenticatedInteligenciaRelatorioRoute
@@ -84,7 +125,12 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/prospeccao': typeof AuthenticatedProspeccaoRoute
+  '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/inteligencia/historico': typeof AuthenticatedInteligenciaHistoricoRoute
   '/_authenticated/inteligencia/relatorio': typeof AuthenticatedInteligenciaRelatorioRoute
@@ -96,7 +142,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin'
+    | '/configuracoes'
+    | '/crm'
     | '/prospeccao'
+    | '/relatorios'
+    | '/tarefas'
     | '/inteligencia/historico'
     | '/inteligencia/relatorio'
     | '/inteligencia/'
@@ -104,7 +155,12 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/reset-password'
+    | '/admin'
+    | '/configuracoes'
+    | '/crm'
     | '/prospeccao'
+    | '/relatorios'
+    | '/tarefas'
     | '/'
     | '/inteligencia/historico'
     | '/inteligencia/relatorio'
@@ -114,7 +170,12 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/admin'
+    | '/_authenticated/configuracoes'
+    | '/_authenticated/crm'
     | '/_authenticated/prospeccao'
+    | '/_authenticated/relatorios'
+    | '/_authenticated/tarefas'
     | '/_authenticated/'
     | '/_authenticated/inteligencia/historico'
     | '/_authenticated/inteligencia/relatorio'
@@ -157,11 +218,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tarefas': {
+      id: '/_authenticated/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorios': {
+      id: '/_authenticated/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/prospeccao': {
       id: '/_authenticated/prospeccao'
       path: '/prospeccao'
       fullPath: '/prospeccao'
       preLoaderRoute: typeof AuthenticatedProspeccaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inteligencia/': {
@@ -189,7 +285,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedProspeccaoRoute: typeof AuthenticatedProspeccaoRoute
+  AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedInteligenciaHistoricoRoute: typeof AuthenticatedInteligenciaHistoricoRoute
   AuthenticatedInteligenciaRelatorioRoute: typeof AuthenticatedInteligenciaRelatorioRoute
@@ -197,7 +298,12 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedProspeccaoRoute: AuthenticatedProspeccaoRoute,
+  AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedInteligenciaHistoricoRoute:
     AuthenticatedInteligenciaHistoricoRoute,

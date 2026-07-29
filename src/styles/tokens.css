@@ -1,113 +1,136 @@
 /* ============================================================
-   Lummi Design System — Linear × Vercel inspired
-   Dark-mode first • Dense • Tool-like • Professional
+   Code to You Tech — Design Tokens
+   LeadForge / Action Plan Hub
+   Light default (Fintrusx) · Dark mode completo
+   Petróleo · Linho · Âmbar (máx. 5%)
    ============================================================ */
 
 :root {
-  /* ---------- COLOR PRIMITIVES ---------- */
-  /* Canvas / Backgrounds (Linear-style ladder) */
-  --lf-canvas: #010102;
-  --lf-surface-1: #0f1011; /* main panels, sidebar */
-  --lf-surface-2: #141516; /* cards, elevated */
-  --lf-surface-3: #18191a; /* hover, secondary */
-  --lf-surface-4: #1f2023; /* active / pressed */
-  --lf-surface-5: #28282c; /* highest elevation */
+  /* ---------- BRAND PRIMITIVES (fixed) ---------- */
+  --cy-petroleo: #0f4c5c;
+  --cy-breu: #072a31;
+  --cy-mare: #2e7a85;
+  --cy-nevoa: #7fb0b4;
+  --cy-ambar: #e4a063;
+  --cy-linho: #f4efe3;
+  --cy-grafite: #1b2c30;
+  --cy-grad-cool: linear-gradient(120deg, #072a31, #2e7a85);
 
-  /* Hairlines / Borders */
-  --lf-border: #23252a;
-  --lf-border-strong: #34343a;
-  --lf-border-subtle: #1a1b1e;
+  /* ---------- CONTENT SURFACE — LIGHT DEFAULT (Fintrusx) ---------- */
+  --cy-content-bg: #f4efe3;
+  --cy-content-ink: #1b2c30;
+  --cy-card: #ffffff;
+  --cy-card-border: #ddd5c4;
+  --cy-muted: #2f4348;
+  --cy-input-bg: #ffffff;
+  --cy-surface-hover: #efe9dc;
+  --cy-surface-active: #e6dfd0;
+  --cy-elevated: #f7f3ea;
+  --cy-sidebar: #072a31;
+  --cy-sidebar-ink: #f4efe3;
 
-  /* Text */
-  --lf-ink: #f7f8f8; /* primary text */
-  --lf-ink-muted: #d0d6e0; /* secondary */
-  --lf-ink-subtle: #8a8f98; /* tertiary / placeholders */
-  --lf-ink-faint: #62666d; /* disabled, timestamps */
+  /* ---------- LEADFORGE LADDER — LIGHT DEFAULT ---------- */
+  --lf-canvas: #f4efe3;
+  --lf-surface-1: #ffffff;
+  --lf-surface-2: #fcfaf5;
+  --lf-surface-3: #efe9dc;
+  --lf-surface-4: #e6dfd0;
+  --lf-surface-5: #ddd5c4;
 
-  /* Brand Accent — Linear lavender */
-  --lf-accent: #5e6ad2;
-  --lf-accent-hover: #6e7ae2;
-  --lf-accent-active: #4e5ac2;
-  --lf-accent-muted: #5e6ad2 / 0.15;
-  --lf-accent-glow: #5e6ad2 / 0.25;
+  --lf-border: #cfc6b2;
+  --lf-border-strong: #c4b9a3;
+  --lf-border-subtle: #e5dfd2;
 
-  /* Semantic */
+  --lf-ink: #1b2c30;
+  --lf-ink-muted: #3a4f54;
+  --lf-ink-subtle: #3a4f54;
+  --lf-ink-faint: #4a5c60;
+
+  /* ---------- ACCENT (same both modes) ---------- */
+  --lf-accent: #0f4c5c;
+  --lf-accent-hover: #2e7a85;
+  --lf-accent-active: #0a3a45;
+  --lf-accent-muted: color-mix(in srgb, #0f4c5c 18%, transparent);
+  --lf-accent-glow: color-mix(in srgb, #2e7a85 28%, transparent);
+
+  --lf-amber: #e4a063;
+  --lf-amber-muted: color-mix(in srgb, #e4a063 18%, transparent);
+
+  /* ---------- SEMANTIC ---------- */
   --lf-success: #27a644;
-  --lf-success-muted: #27a644 / 0.15;
-  --lf-warning: #f5a623;
-  --lf-warning-muted: #f5a623 / 0.15;
+  --lf-success-muted: color-mix(in srgb, #27a644 15%, transparent);
+  --lf-warning: #e4a063;
+  --lf-warning-muted: color-mix(in srgb, #e4a063 15%, transparent);
   --lf-danger: #e01e2c;
-  --lf-danger-muted: #e01e2c / 0.15;
-  --lf-info: #3b82f6;
+  --lf-danger-muted: color-mix(in srgb, #e01e2c 15%, transparent);
+  --lf-info: #2e7a85;
 
-  /* Overlays */
-  --lf-overlay: rgba(1, 1, 2, 0.72);
-  --lf-overlay-strong: rgba(1, 1, 2, 0.88);
+  /* ---------- OVERLAYS ---------- */
+  --lf-overlay: rgba(244, 239, 227, 0.82);
+  --lf-overlay-strong: rgba(244, 239, 227, 0.94);
 
   /* ---------- TYPOGRAPHY ---------- */
-  --lf-font-sans:
-    "Inter", "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --lf-font-sans: "Publica Sans", "Outfit", "Segoe UI", system-ui, -apple-system, sans-serif;
   --lf-font-mono:
     "Berkeley Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Type scale (Linear-inspired, tighter tracking) */
-  --lf-text-xs: 0.75rem; /* 12px */
-  --lf-text-sm: 0.8125rem; /* 13px */
-  --lf-text-base: 0.875rem; /* 14px — default UI */
-  --lf-text-md: 0.9375rem; /* 15px */
-  --lf-text-lg: 1rem; /* 16px */
-  --lf-text-xl: 1.125rem; /* 18px */
-  --lf-text-2xl: 1.25rem; /* 20px */
-  --lf-text-3xl: 1.5rem; /* 24px */
-  --lf-text-4xl: 2rem; /* 32px */
-  --lf-text-5xl: 2.5rem; /* 40px */
-  --lf-text-6xl: 3rem; /* 48px */
+  --lf-text-xs: 0.75rem;
+  --lf-text-sm: 0.8125rem;
+  --lf-text-base: 1rem;
+  --lf-text-md: 1.0625rem;
+  --lf-text-lg: 1.125rem;
+  --lf-text-xl: 1.25rem;
+  --lf-text-2xl: 1.5rem;
+  --lf-text-3xl: 1.75rem;
+  --lf-text-4xl: 2.5rem;
+  --lf-text-5xl: 3rem;
+  --lf-text-6xl: 4rem;
 
   --lf-leading-none: 1;
   --lf-leading-tight: 1.15;
   --lf-leading-snug: 1.25;
-  --lf-leading-normal: 1.4;
-  --lf-leading-relaxed: 1.5;
+  --lf-leading-normal: 1.6;
+  --lf-leading-relaxed: 1.7;
 
-  --lf-tracking-tighter: -0.04em;
-  --lf-tracking-tight: -0.025em;
-  --lf-tracking-normal: -0.01em;
-  --lf-tracking-wide: 0.01em;
+  --lf-tracking-tighter: -0.03em;
+  --lf-tracking-tight: -0.02em;
+  --lf-tracking-normal: 0;
+  --lf-tracking-wide: 0.08em;
+  --lf-tracking-label: 0.22em;
 
-  /* Font weights (Linear uses ~510 for medium) */
   --lf-weight-normal: 400;
-  --lf-weight-medium: 510;
+  --lf-weight-medium: 500;
   --lf-weight-semibold: 600;
   --lf-weight-bold: 700;
 
   /* ---------- RADIUS ---------- */
   --lf-radius-xs: 4px;
   --lf-radius-sm: 6px;
-  --lf-radius-md: 8px;
-  --lf-radius-lg: 10px;
-  --lf-radius-xl: 12px;
-  --lf-radius-2xl: 16px;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-xl: 20px;
+  --lf-radius-2xl: 24px;
   --lf-radius-full: 9999px;
 
-  /* ---------- SPACING (4px base) ---------- */
+  /* ---------- SPACING (4px scale) ---------- */
   --lf-space-0: 0;
-  --lf-space-1: 0.25rem; /* 4px */
-  --lf-space-2: 0.5rem; /* 8px */
-  --lf-space-3: 0.75rem; /* 12px */
-  --lf-space-4: 1rem; /* 16px */
-  --lf-space-5: 1.25rem; /* 20px */
-  --lf-space-6: 1.5rem; /* 24px */
-  --lf-space-8: 2rem; /* 32px */
-  --lf-space-10: 2.5rem; /* 40px */
-  --lf-space-12: 3rem; /* 48px */
-  --lf-space-16: 4rem; /* 64px */
+  --lf-space-1: 0.25rem;
+  --lf-space-2: 0.5rem;
+  --lf-space-3: 0.75rem;
+  --lf-space-4: 1rem;
+  --lf-space-5: 1.25rem;
+  --lf-space-6: 1.5rem;
+  --lf-space-8: 2rem;
+  --lf-space-10: 2.5rem;
+  --lf-space-12: 3rem;
+  --lf-space-16: 4rem;
+  --lf-space-24: 6rem;
 
-  /* ---------- SHADOWS (subtle, Linear-style) ---------- */
-  --lf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --lf-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --lf-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --lf-shadow-accent: 0 0 0 1px var(--lf-accent), 0 0 20px var(--lf-accent-glow);
+  /* ---------- SHADOWS ---------- */
+  --lf-shadow-sm: 0 1px 2px rgba(27, 44, 48, 0.05);
+  --lf-shadow-md: 0 2px 8px rgba(27, 44, 48, 0.06), 0 0 0 1px rgba(27, 44, 48, 0.04);
+  --lf-shadow-lg: 0 12px 36px rgba(27, 44, 48, 0.12), 0 0 0 1px rgba(27, 44, 48, 0.05);
+  --lf-shadow-accent: 0 0 0 1px var(--lf-accent-hover), 0 0 24px var(--lf-accent-glow);
 
   /* ---------- TRANSITIONS ---------- */
   --lf-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -120,26 +143,99 @@
   --lf-z-sticky: 40;
   --lf-z-modal: 100;
   --lf-z-toast: 110;
+
+  /* ---------- SEMANTIC ALIASES (for Tailwind / shadcn) ---------- */
+  --background: var(--lf-canvas);
+  --foreground: var(--lf-ink);
+  --card: var(--lf-surface-1);
+  --card-foreground: var(--lf-ink);
+  --popover: var(--lf-surface-2);
+  --popover-foreground: var(--lf-ink);
+  --primary: var(--lf-accent);
+  --primary-foreground: #f4efe3;
+  --secondary: var(--lf-surface-3);
+  --secondary-foreground: var(--lf-ink);
+  --muted: var(--lf-surface-3);
+  --muted-foreground: var(--lf-ink-subtle);
+  --accent: var(--lf-accent-hover);
+  --accent-foreground: #f4efe3;
+  --destructive: var(--lf-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--lf-border);
+  --input: var(--lf-border);
+  --ring: var(--lf-accent-hover);
+  --radius: 12px;
+  --gradient-hero: linear-gradient(120deg, #072a31 0%, #2e7a85 100%);
+  --shadow-card: var(--lf-shadow-md);
 }
 
-/* Light mode override (optional, secondary) */
+/* ============================================================
+   DARK MODE — full override of content + ladder + aliases
+   ============================================================ */
+[data-theme="dark"],
+html.dark {
+  --cy-content-bg: #072a31;
+  --cy-content-ink: #f4efe3;
+  --cy-card: #0b3a44;
+  --cy-card-border: #1a4a55;
+  --cy-muted: #7fb0b4;
+  --cy-input-bg: #0d3842;
+  --cy-surface-hover: #124955;
+  --cy-surface-active: #1a5560;
+  --cy-elevated: #0d3842;
+  --cy-sidebar: #072a31;
+  --cy-sidebar-ink: #f4efe3;
+
+  --lf-canvas: #072a31;
+  --lf-surface-1: #0b3a44;
+  --lf-surface-2: #0d3842;
+  --lf-surface-3: #124955;
+  --lf-surface-4: #1a5560;
+  --lf-surface-5: #226a78;
+
+  --lf-border: #1a4a55;
+  --lf-border-strong: #2a6570;
+  --lf-border-subtle: #0f3038;
+
+  --lf-ink: #f4efe3;
+  --lf-ink-muted: #c8d8da;
+  --lf-ink-subtle: #7fb0b4;
+  --lf-ink-faint: #56696d;
+
+  --lf-overlay: rgba(7, 42, 49, 0.78);
+  --lf-overlay-strong: rgba(7, 42, 49, 0.9);
+
+  --lf-shadow-sm: 0 1px 2px rgba(7, 42, 49, 0.35);
+  --lf-shadow-md: 0 4px 16px rgba(7, 42, 49, 0.4), 0 0 0 1px rgba(127, 176, 180, 0.06);
+  --lf-shadow-lg: 0 12px 36px rgba(7, 42, 49, 0.5), 0 0 0 1px rgba(127, 176, 180, 0.08);
+
+  --background: var(--lf-canvas);
+  --foreground: var(--lf-ink);
+  --card: var(--lf-surface-1);
+  --card-foreground: var(--lf-ink);
+  --popover: var(--lf-surface-2);
+  --popover-foreground: var(--lf-ink);
+  --primary: var(--lf-accent);
+  --primary-foreground: #f4efe3;
+  --secondary: var(--lf-surface-3);
+  --secondary-foreground: var(--lf-ink);
+  --muted: var(--lf-surface-3);
+  --muted-foreground: var(--lf-ink-subtle);
+  --accent: var(--lf-accent-hover);
+  --accent-foreground: #f4efe3;
+  --destructive: var(--lf-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--lf-border);
+  --input: var(--lf-border);
+  --ring: var(--lf-accent-hover);
+  --shadow-card: var(--lf-shadow-md);
+}
+
 [data-theme="light"] {
-  --lf-canvas: #f7f8f8;
-  --lf-surface-1: #ffffff;
-  --lf-surface-2: #f0f1f2;
-  --lf-surface-3: #e8e9eb;
-  --lf-surface-4: #dfe0e2;
-  --lf-surface-5: #d0d1d4;
+  color-scheme: light;
+}
 
-  --lf-border: #e5e5e6;
-  --lf-border-strong: #d0d6e0;
-  --lf-border-subtle: #ececed;
-
-  --lf-ink: #0f1011;
-  --lf-ink-muted: #2c2e33;
-  --lf-ink-subtle: #5a5f6b;
-  --lf-ink-faint: #8a8f98;
-
-  --lf-overlay: rgba(247, 248, 248, 0.8);
-  --lf-overlay-strong: rgba(247, 248, 248, 0.92);
+[data-theme="dark"],
+html.dark {
+  color-scheme: dark;
 }

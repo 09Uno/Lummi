@@ -1,10 +1,16 @@
+import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
+import { MODULE_ROLES } from "@/lib/rbac/types";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Star } from "lucide-react";
 import { useIntelligenceHistory } from "@/hooks/useIntelligenceHistory";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/inteligencia/historico")({
-  component: HistoryPage,
+  component: () => (
+    <ProtectedRoute requiredRoles={MODULE_ROLES.inteligencia}>
+      <HistoryPage />
+    </ProtectedRoute>
+  ),
 });
 
 function HistoryPage() {

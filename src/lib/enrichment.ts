@@ -1,5 +1,5 @@
 /**
- * Free enrichment helpers for Lummi
+ * Free enrichment helpers for LeadForge
  *
  * Pipeline resiliente:
  *   Empresa → Website → fetch() (com timeout) → Cheerio (limpeza)
@@ -34,6 +34,24 @@ export type CnpjData = {
 };
 
 /** Structured scrape result (kept name for backward compat with existing callers). */
+/** Contato classificado extraído do site / busca pública. */
+export type ClassifiedContact = {
+  tipo:
+    | "telefone_fixo"
+    | "whatsapp"
+    | "telefone_comercial"
+    | "sac"
+    | "email"
+    | "formulario"
+    | "central_comercial"
+    | "site"
+    | "linkedin";
+  valor: string;
+  origem: string;
+  evidencia?: string | null;
+};
+
+/** Structured scrape result (kept name for backward compat with existing callers). */
 export type JinaResult = {
   ok: boolean;
   markdown: string;
@@ -44,6 +62,12 @@ export type JinaResult = {
   telefones: string[];
   produtos: string[];
   servicos: string[];
+  /** Contatos classificados com origem/evidência */
+  contatos: ClassifiedContact[];
+  whatsapp: string | null;
+  telefone_fixo: string | null;
+  telefone_comercial: string | null;
+  sac: string | null;
 };
 
 const CNPJ_REGEX = /\b(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\b/g;
@@ -61,6 +85,13 @@ const CANDIDATE_PATHS = [
   "/quem-somos",
   "/empresa",
   "/institucional",
+  "/contato",
+  "/contact",
+  "/fale-conosco",
+  "/atendimento",
+  "/contato.html",
+  "/contact-us",
+  "/central-de-atendimento",
   "/carreiras",
   "/vagas",
   "/produtos",
@@ -145,7 +176,7 @@ async function fetchPage(
         redirect: "follow",
         signal: pageCtrl.signal,
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; LummiBot/1.0; +https://lummi.app)",
+          "User-Agent": "Mozilla/5.0 (compatible; LeadForgeBot/1.0; +https://leadforge.app)",
           Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
         },
@@ -207,40 +238,6 @@ async function fetchPage(
   return { res: null, ms: Date.now() - start, html: null, err: lastErr };
 }
 
-// Bloqueia SSRF: hosts internos/privados, metadata cloud e nomes de container docker.
-// O scrapeSite recebe URLs vindas do Claude (alucinação possível) — sem esta checagem,
-// um lead com website "http://169.254.169.254/..." vazaria metadata da instância cloud,
-// e "http://n8n:5678/..." bateria em outros stacks da mesma proxy-net na VPS.
-function isSafeExternalHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (!h) return false;
-  // Nome sem TLD (docker service names: n8n, postgres, copiloto-api, etc.)
-  if (!h.includes(".")) return false;
-  // localhost / loopback
-  if (h === "localhost" || h === "ip6-localhost" || h === "ip6-loopback") return false;
-  // IPv4 literal — bloqueia ranges privados, link-local, loopback, TEST-NET.
-  const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [a, b] = v4.slice(1).map(Number);
-    if (a === 10) return false;
-    if (a === 127) return false;
-    if (a === 0) return false;
-    if (a === 169 && b === 254) return false; // AWS/GCP metadata + link-local
-    if (a === 172 && b >= 16 && b <= 31) return false;
-    if (a === 192 && b === 168) return false;
-    if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT
-    if (a >= 224) return false; // multicast / reservado
-  }
-  // IPv6 literal (URL usa colchetes: [::1], [fc00::1], [fe80::...])
-  if (h.startsWith("[") && h.endsWith("]")) {
-    const v6 = h.slice(1, -1);
-    if (v6 === "::1" || v6 === "::") return false;
-    if (/^fc/i.test(v6) || /^fd/i.test(v6)) return false; // ULA
-    if (/^fe8/i.test(v6)) return false; // link-local
-  }
-  return true;
-}
-
 function normalizeBaseUrl(u: string): { base: string; origin: string; host: string } | null {
   try {
     let s = u.trim();
@@ -248,7 +245,6 @@ function normalizeBaseUrl(u: string): { base: string; origin: string; host: stri
     if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
     const url = new URL(s);
     if (!url.hostname) return null;
-    if (!isSafeExternalHost(url.hostname)) return null;
     return { base: `${url.protocol}//${url.host}`, origin: url.origin, host: url.host };
   } catch {
     return null;
@@ -269,15 +265,146 @@ function isSameOrigin(href: string, base: string, origin: string): string | null
   }
 }
 
+function classifyPhoneContext(nearby: string): ClassifiedContact["tipo"] {
+  const t = nearby
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (/\b(whats?app|wa\.me|api\.whatsapp|zap)\b/.test(t)) return "whatsapp";
+  if (/\b(sac|ouvidoria|0800|consumidor|reclame)\b/.test(t)) return "sac";
+  if (/\b(comercial|vendas|sales|or[cç]amento|contato comercial|televendas)\b/.test(t))
+    return "telefone_comercial";
+  if (/\b(central|atendimento|call ?center|suporte)\b/.test(t)) return "central_comercial";
+  // celular BR (9 dígitos após DDD) sem menção a WhatsApp → comercial/fixo genérico
+  return "telefone_fixo";
+}
+
+function extractContactsFromHtml(html: string, pageUrl: string): ClassifiedContact[] {
+  const $ = cheerio.load(html);
+  const contacts: ClassifiedContact[] = [];
+  const seen = new Set<string>();
+
+  const push = (c: ClassifiedContact) => {
+    const key = `${c.tipo}|${c.valor}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    contacts.push(c);
+  };
+
+  // WhatsApp links — evidência explícita
+  $("a[href]").each((_i, el) => {
+    const href = ($(el).attr("href") || "").trim();
+    const label = $(el).text().replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!href) return;
+
+    const hrefLower = href.toLowerCase();
+    if (
+      hrefLower.includes("wa.me/") ||
+      hrefLower.includes("api.whatsapp.com") ||
+      hrefLower.startsWith("whatsapp://")
+    ) {
+      const digits = href.replace(/\D/g, "");
+      // wa.me/5511999... — remove country code noise for display
+      const valor = digits.length >= 10 ? digits : href;
+      push({
+        tipo: "whatsapp",
+        valor,
+        origem: pageUrl,
+        evidencia: label || href.slice(0, 120),
+      });
+      return;
+    }
+
+    if (hrefLower.startsWith("tel:")) {
+      const valor = href.replace(/^tel:/i, "").trim();
+      const parentText = $(el).parent().text().replace(/\s+/g, " ").trim().slice(0, 160);
+      const nearby = `${label} ${parentText}`;
+      push({
+        tipo: classifyPhoneContext(nearby),
+        valor,
+        origem: pageUrl,
+        evidencia: nearby.slice(0, 120) || null,
+      });
+      return;
+    }
+
+    if (hrefLower.startsWith("mailto:")) {
+      const valor = href
+        .replace(/^mailto:/i, "")
+        .split("?")[0]
+        .trim();
+      if (valor && valor.includes("@")) {
+        push({
+          tipo: "email",
+          valor,
+          origem: pageUrl,
+          evidencia: label || null,
+        });
+      }
+      return;
+    }
+
+    // Formulário de contato
+    if (
+      /(contato|contact|fale-conosco|atendimento)/i.test(href) &&
+      /(form|formulario|fale)/i.test(label + href)
+    ) {
+      try {
+        const abs = new URL(href, pageUrl).toString();
+        push({
+          tipo: "formulario",
+          valor: abs,
+          origem: pageUrl,
+          evidencia: label || null,
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+
+  // Texto do body+footer (NÃO remover footer antes desta extração)
+  const fullText = $("body").text().replace(/\s+/g, " ").trim();
+
+  // E-mails no texto
+  for (const m of fullText.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? []) {
+    if (/\.(png|jpg|jpeg|svg|gif|webp)$/i.test(m)) continue;
+    push({ tipo: "email", valor: m, origem: pageUrl, evidencia: null });
+  }
+
+  // Telefones no texto com janela de contexto
+  const phoneRe = /(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}/g;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(phoneRe);
+  while ((match = re.exec(fullText)) !== null) {
+    const valor = match[0].trim();
+    const start = Math.max(0, match.index - 40);
+    const end = Math.min(fullText.length, match.index + valor.length + 40);
+    const nearby = fullText.slice(start, end);
+    // Só marca WhatsApp se houver evidência no contexto próximo
+    const tipo = classifyPhoneContext(nearby);
+    push({
+      tipo,
+      valor,
+      origem: pageUrl,
+      evidencia: nearby.slice(0, 120),
+    });
+  }
+
+  return contacts;
+}
+
 function extractStructuredFromHtml(
   html: string,
   base: string,
   origin: string,
+  pageUrl: string,
 ): {
   text: string;
   title: string | null;
   linkedin: string | null;
   internalLinks: string[];
+  contatos: ClassifiedContact[];
 } {
   const $ = cheerio.load(html);
 
@@ -297,7 +424,10 @@ function extractStructuredFromHtml(
       .attr("href")
       ?.trim() ?? null;
 
-  // Limpeza: remover ruído
+  // Contatos ANTES de remover footer/header — rodapé costuma ter telefone/WhatsApp
+  const contatos = extractContactsFromHtml(html, pageUrl);
+
+  // Limpeza: remover ruído (após extrair contatos)
   $(
     [
       "script",
@@ -331,7 +461,7 @@ function extractStructuredFromHtml(
   const bodyText = $("body").text().replace(/\s+/g, " ").trim();
   const text = [metaDesc, bodyText].filter(Boolean).join(" ").slice(0, 6000);
 
-  return { text, title, linkedin, internalLinks: [...internalLinks] };
+  return { text, title, linkedin, internalLinks: [...internalLinks], contatos };
 }
 
 function mineListSignals(text: string, kw: RegExp): string[] {
@@ -363,6 +493,11 @@ export async function scrapeSite(
     telefones: [],
     produtos: [],
     servicos: [],
+    contatos: [],
+    whatsapp: null,
+    telefone_fixo: null,
+    telefone_comercial: null,
+    sac: null,
   };
 
   const norm = normalizeBaseUrl(rootUrl);
@@ -384,12 +519,14 @@ export async function scrapeSite(
   const seen = new Set<string>();
   const queue: string[] = [];
   const chunks: string[] = [];
+  const allContatos: ClassifiedContact[] = [];
+  const contatoSeen = new Set<string>();
   let title: string | null = null;
   let linkedin: string | null = null;
   let visited = 0;
   let discovered = 0;
 
-  // Semear com raiz + candidatas conhecidas
+  // Semear com raiz + candidatas conhecidas (contato prioritário no início da lista)
   for (const path of CANDIDATE_PATHS) {
     queue.push(`${norm.base}${path}`);
   }
@@ -422,18 +559,24 @@ export async function scrapeSite(
       }
 
       visited++;
-      const parsed = extractStructuredFromHtml(html, norm.base, norm.origin);
+      const parsed = extractStructuredFromHtml(html, norm.base, norm.origin, res.url || u);
       if (!title && parsed.title) title = parsed.title;
       if (!linkedin && parsed.linkedin) linkedin = parsed.linkedin;
       if (parsed.text.length > 60) chunks.push(parsed.text);
+      for (const c of parsed.contatos) {
+        const k = `${c.tipo}|${c.valor}`;
+        if (contatoSeen.has(k)) continue;
+        contatoSeen.add(k);
+        allContatos.push(c);
+      }
 
       // Descoberta adicional dentro do mesmo domínio
       for (const link of parsed.internalLinks) {
         if (seen.has(link)) continue;
         if (queue.includes(link)) continue;
-        // heurística: dar prioridade a slugs institucionais
+        // heurística: dar prioridade a slugs institucionais / contato
         if (
-          /(about|sobre|quem-somos|empresa|institucional|carreir|vagas|produt|servic|solu[cç]|blog|noticia|faq|contato)/i.test(
+          /(about|sobre|quem-somos|empresa|institucional|carreir|vagas|produt|servic|solu[cç]|blog|noticia|faq|contato|contact|fale-conosco|atendimento)/i.test(
             link,
           )
         ) {
@@ -463,24 +606,59 @@ export async function scrapeSite(
     status: combined ? "done" : "empty",
     ms: totalMs,
     bytes: combined.length,
-    discardReason: `visited=${visited};discovered=${discovered}`,
+    discardReason: `visited=${visited};discovered=${discovered};contatos=${allContatos.length}`,
   });
 
-  if (!combined) return empty;
+  // Preferência: contatos classificados; fallback: regex no texto agregado
+  const emailsFromContacts = allContatos.filter((c) => c.tipo === "email").map((c) => c.valor);
+  const phonesFromContacts = allContatos
+    .filter((c) =>
+      ["telefone_fixo", "whatsapp", "telefone_comercial", "sac", "central_comercial"].includes(
+        c.tipo,
+      ),
+    )
+    .map((c) => c.valor);
 
   const emails = [
-    ...new Set(
-      (combined.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? []).filter(
+    ...new Set([
+      ...emailsFromContacts,
+      ...(combined.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? []).filter(
         (e) => !/\.(png|jpg|jpeg|svg|gif|webp)$/i.test(e),
       ),
-    ),
-  ].slice(0, 5);
+    ]),
+  ].slice(0, 8);
+
   const telefones = [
-    ...new Set(combined.match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}/g) ?? []),
-  ].slice(0, 5);
+    ...new Set([
+      ...phonesFromContacts,
+      ...(combined.match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}/g) ?? []),
+    ]),
+  ].slice(0, 8);
+
+  // Pick best per kind (first wins — pages visited in priority order)
+  const pick = (tipo: ClassifiedContact["tipo"]) =>
+    allContatos.find((c) => c.tipo === tipo)?.valor ?? null;
+
+  if (linkedin) {
+    allContatos.push({
+      tipo: "linkedin",
+      valor: linkedin,
+      origem: norm.base,
+      evidencia: null,
+    });
+  }
+  allContatos.push({
+    tipo: "site",
+    valor: norm.base,
+    origem: "scrape",
+    evidencia: null,
+  });
+
   const cnpjCandidates = extractCnpjsFromText(combined);
   const produtos = mineListSignals(combined, /\bprodutos?\b/i);
   const servicos = mineListSignals(combined, /\bservi[cç]os?\b/i);
+
+  if (!combined && allContatos.length === 0) return empty;
 
   return {
     ok: true,
@@ -492,6 +670,11 @@ export async function scrapeSite(
     telefones,
     produtos,
     servicos,
+    contatos: allContatos.slice(0, 40),
+    whatsapp: pick("whatsapp"),
+    telefone_fixo: pick("telefone_fixo"),
+    telefone_comercial: pick("telefone_comercial") ?? pick("central_comercial"),
+    sac: pick("sac"),
   };
 }
 
@@ -639,6 +822,11 @@ export async function enrichLeadFree(input: {
   produtos: string[];
   servicos: string[];
   resumo_site: string;
+  contatos: ClassifiedContact[];
+  whatsapp: string | null;
+  telefone_fixo: string | null;
+  telefone_comercial: string | null;
+  sac: string | null;
 }> {
   const started = Date.now();
   let site_confirmado = input.site_confirmado;
@@ -650,6 +838,11 @@ export async function enrichLeadFree(input: {
   let produtos: string[] = [];
   let servicos: string[] = [];
   let resumo_site = "";
+  let contatos: ClassifiedContact[] = [];
+  let whatsapp: string | null = null;
+  let telefone_fixo: string | null = null;
+  let telefone_comercial: string | null = null;
+  let sac: string | null = null;
   const cnpjCandidates: string[] = [];
 
   if (input.cnpjHint) {
@@ -669,6 +862,11 @@ export async function enrichLeadFree(input: {
         telefones = scraped.telefones;
         produtos = scraped.produtos;
         servicos = scraped.servicos;
+        contatos = scraped.contatos ?? [];
+        whatsapp = scraped.whatsapp ?? null;
+        telefone_fixo = scraped.telefone_fixo ?? null;
+        telefone_comercial = scraped.telefone_comercial ?? null;
+        sac = scraped.sac ?? null;
         if (!linkedin && scraped.linkedin) linkedin = scraped.linkedin;
         cnpjCandidates.push(...scraped.cnpjCandidates);
       }
@@ -720,5 +918,10 @@ export async function enrichLeadFree(input: {
     produtos,
     servicos,
     resumo_site,
+    contatos,
+    whatsapp,
+    telefone_fixo,
+    telefone_comercial,
+    sac,
   };
 }

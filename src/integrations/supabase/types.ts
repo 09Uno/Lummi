@@ -8,6 +8,372 @@ export type Database = {
   };
   public: {
     Tables: {
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          role: Database["public"]["Enums"]["user_role"];
+          manager_id: string | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          role?: Database["public"]["Enums"]["user_role"];
+          manager_id?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          role?: Database["public"]["Enums"]["user_role"];
+          manager_id?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "users_manager_id_fkey";
+            columns: ["manager_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_leads: {
+        Row: {
+          id: string;
+          user_id: string;
+          organization: string;
+          organization_norm: string;
+          website: string | null;
+          email: string | null;
+          phone: string | null;
+          linkedin: string | null;
+          cnpj: string | null;
+          status: Database["public"]["Enums"]["crm_status"];
+          source: Database["public"]["Enums"]["crm_source"];
+          industry: string | null;
+          segment: string | null;
+          uf: string | null;
+          municipio: string | null;
+          fit: string | null;
+          confianca: Database["public"]["Enums"]["crm_confianca"] | null;
+          position: number;
+          notes: string | null;
+          converted: boolean;
+          lost_reason: string | null;
+          assigned_to: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          organization: string;
+          organization_norm: string;
+          website?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          linkedin?: string | null;
+          cnpj?: string | null;
+          status?: Database["public"]["Enums"]["crm_status"];
+          source?: Database["public"]["Enums"]["crm_source"];
+          industry?: string | null;
+          segment?: string | null;
+          uf?: string | null;
+          municipio?: string | null;
+          fit?: string | null;
+          confianca?: Database["public"]["Enums"]["crm_confianca"] | null;
+          position?: number;
+          notes?: string | null;
+          converted?: boolean;
+          lost_reason?: string | null;
+          assigned_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          organization?: string;
+          organization_norm?: string;
+          website?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          linkedin?: string | null;
+          cnpj?: string | null;
+          status?: Database["public"]["Enums"]["crm_status"];
+          source?: Database["public"]["Enums"]["crm_source"];
+          industry?: string | null;
+          segment?: string | null;
+          uf?: string | null;
+          municipio?: string | null;
+          fit?: string | null;
+          confianca?: Database["public"]["Enums"]["crm_confianca"] | null;
+          position?: number;
+          notes?: string | null;
+          converted?: boolean;
+          lost_reason?: string | null;
+          assigned_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_lead_notes: {
+        Row: {
+          id: string;
+          lead_id: string;
+          user_id: string;
+          author_name: string | null;
+          kind: Database["public"]["Enums"]["crm_note_kind"];
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lead_id: string;
+          user_id: string;
+          author_name?: string | null;
+          kind?: Database["public"]["Enums"]["crm_note_kind"];
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          lead_id?: string;
+          user_id?: string;
+          author_name?: string | null;
+          kind?: Database["public"]["Enums"]["crm_note_kind"];
+          content?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_notes_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_lead_tasks: {
+        Row: {
+          id: string;
+          lead_id: string;
+          user_id: string;
+          title: string;
+          task_type: Database["public"]["Enums"]["crm_task_type"];
+          due_at: string | null;
+          done: boolean;
+          done_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lead_id: string;
+          user_id: string;
+          title: string;
+          task_type?: Database["public"]["Enums"]["crm_task_type"];
+          due_at?: string | null;
+          done?: boolean;
+          done_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lead_id?: string;
+          user_id?: string;
+          title?: string;
+          task_type?: Database["public"]["Enums"]["crm_task_type"];
+          due_at?: string | null;
+          done?: boolean;
+          done_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_tasks_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_lead_company_profiles: {
+        Row: {
+          id: string;
+          lead_id: string;
+          user_id: string;
+          razao_social: string | null;
+          nome_fantasia: string | null;
+          cnpj: string | null;
+          telefone_fixo: string | null;
+          whatsapp: string | null;
+          telefone_comercial: string | null;
+          sac: string | null;
+          email: string | null;
+          site: string | null;
+          linkedin: string | null;
+          cidade: string | null;
+          estado: string | null;
+          segmento: string | null;
+          porte: string | null;
+          cnae: string | null;
+          cnae_descricao: string | null;
+          fonte_enriquecimento: string | null;
+          contatos_origem: Json;
+          raw_enrichment: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lead_id: string;
+          user_id: string;
+          razao_social?: string | null;
+          nome_fantasia?: string | null;
+          cnpj?: string | null;
+          telefone_fixo?: string | null;
+          whatsapp?: string | null;
+          telefone_comercial?: string | null;
+          sac?: string | null;
+          email?: string | null;
+          site?: string | null;
+          linkedin?: string | null;
+          cidade?: string | null;
+          estado?: string | null;
+          segmento?: string | null;
+          porte?: string | null;
+          cnae?: string | null;
+          cnae_descricao?: string | null;
+          fonte_enriquecimento?: string | null;
+          contatos_origem?: Json;
+          raw_enrichment?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lead_id?: string;
+          user_id?: string;
+          razao_social?: string | null;
+          nome_fantasia?: string | null;
+          cnpj?: string | null;
+          telefone_fixo?: string | null;
+          whatsapp?: string | null;
+          telefone_comercial?: string | null;
+          sac?: string | null;
+          email?: string | null;
+          site?: string | null;
+          linkedin?: string | null;
+          cidade?: string | null;
+          estado?: string | null;
+          segmento?: string | null;
+          porte?: string | null;
+          cnae?: string | null;
+          cnae_descricao?: string | null;
+          fonte_enriquecimento?: string | null;
+          contatos_origem?: Json;
+          raw_enrichment?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_company_profiles_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: true;
+            referencedRelation: "crm_leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      crm_lead_decision_makers: {
+        Row: {
+          id: string;
+          lead_id: string;
+          user_id: string;
+          name: string;
+          title: string | null;
+          area: Database["public"]["Enums"]["crm_decision_maker_area"] | null;
+          priority: number;
+          score: number;
+          probabilidade_decisor: number | null;
+          linkedin_url: string | null;
+          employment_verified: boolean;
+          source: string | null;
+          evidence: string | null;
+          commercial_context_hash: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lead_id: string;
+          user_id: string;
+          name: string;
+          title?: string | null;
+          area?: Database["public"]["Enums"]["crm_decision_maker_area"] | null;
+          priority?: number;
+          score?: number;
+          probabilidade_decisor?: number | null;
+          linkedin_url?: string | null;
+          employment_verified?: boolean;
+          source?: string | null;
+          evidence?: string | null;
+          commercial_context_hash?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lead_id?: string;
+          user_id?: string;
+          name?: string;
+          title?: string | null;
+          area?: Database["public"]["Enums"]["crm_decision_maker_area"] | null;
+          priority?: number;
+          score?: number;
+          probabilidade_decisor?: number | null;
+          linkedin_url?: string | null;
+          employment_verified?: boolean;
+          source?: string | null;
+          evidence?: string | null;
+          commercial_context_hash?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_decision_makers_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       intelligence_reports: {
         Row: {
           company_name: string;
@@ -133,7 +499,25 @@ export type Database = {
       [_ in never]: never;
     };
     Enums: {
-      [_ in never]: never;
+      user_role: "administrador" | "gestor_comercial" | "sdr";
+      crm_status: "new" | "contacted" | "nurture" | "qualified" | "lost";
+      crm_source: "prospeccao" | "manual" | "inteligencia" | "import";
+      crm_confianca: "alta" | "media" | "validar";
+      crm_note_kind: "note" | "call" | "email" | "whatsapp" | "meeting";
+      crm_task_type: "follow_up" | "meeting" | "call" | "email" | "other";
+      crm_decision_maker_area:
+        | "rh_people"
+        | "financeiro"
+        | "operacoes_industrial"
+        | "marketing"
+        | "comercial_vendas"
+        | "ti_tecnologia"
+        | "juridico"
+        | "compras_suprimentos"
+        | "facilities"
+        | "diretoria_executiva"
+        | "socios_fundadores"
+        | "outra";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -254,6 +638,27 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["administrador", "gestor_comercial", "sdr"],
+      crm_status: ["new", "contacted", "nurture", "qualified", "lost"],
+      crm_source: ["prospeccao", "manual", "inteligencia", "import"],
+      crm_confianca: ["alta", "media", "validar"],
+      crm_note_kind: ["note", "call", "email", "whatsapp", "meeting"],
+      crm_task_type: ["follow_up", "meeting", "call", "email", "other"],
+      crm_decision_maker_area: [
+        "rh_people",
+        "financeiro",
+        "operacoes_industrial",
+        "marketing",
+        "comercial_vendas",
+        "ti_tecnologia",
+        "juridico",
+        "compras_suprimentos",
+        "facilities",
+        "diretoria_executiva",
+        "socios_fundadores",
+        "outra",
+      ],
+    },
   },
 } as const;

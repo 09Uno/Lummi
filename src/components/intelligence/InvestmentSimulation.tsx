@@ -115,7 +115,7 @@ function StatCard({
     <div
       className={cn(
         "rounded-2xl p-4 border-l-4 bg-secondary/40 border border-border flex flex-col gap-1.5",
-        highlight ? "border-l-[oklch(0.55_0.22_340)]" : "border-l-foreground",
+        highlight ? "border-l-[#E4A063]" : "border-l-foreground",
       )}
     >
       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">

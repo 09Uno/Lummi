@@ -1,12 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createHash } from "crypto";
-// AI backend: Anthropic Claude via REST (ver src/lib/ai-gateway.server.ts).
-import { getClaudeApiKey, callClaude } from "./ai-gateway.server";
+// Perplexity via ai-gateway (PERPLEXITY_API_KEY)
+import { getLlmApiKey, callLLM } from "./ai-gateway.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { enrichLeadFree, extractCnpjsFromText, scrapeSite } from "./enrichment";
 import { freeCompanySearch, freeHitsToRawText } from "./free-search";
 import { checkRateLimit, rateLimitMessage } from "./rate-limit.server";
+import {
+  commercialContextHash,
+  mapWithConcurrency,
+  type LeadDecisionMaker,
+} from "./decision-makers";
+import { searchDecisionMakersForCompany } from "./intelligence-report.functions";
 
 const CACHE_TTL_DAYS = Number(process.env.CACHE_TTL_DAYS ?? "1");
 const CACHE_TTL_MS = Math.max(1, CACHE_TTL_DAYS) * 24 * 60 * 60 * 1000;
@@ -73,6 +79,19 @@ export type EnrichedLead = {
   produtos: string[];
   servicos: string[];
   resumo_site: string;
+  whatsapp: string | null;
+  telefone_fixo: string | null;
+  telefone_comercial: string | null;
+  sac: string | null;
+  /** Contatos classificados com origem/evidência */
+  contatos: Array<{
+    tipo: string;
+    valor: string;
+    origem: string;
+    evidencia?: string | null;
+  }>;
+  /** Tomadores de decisão mapeados no fluxo de prospecção (antes do Kanban) */
+  decisionMakers: LeadDecisionMaker[];
 };
 
 function normalizeName(n: string) {
@@ -92,21 +111,27 @@ function hashFilters(f: {
   porte: string;
   estados: string[];
   quantidade: number;
+  oQueVende?: string;
+  diferencial?: string;
+  infoExtra?: string;
 }) {
+  const ctx = commercialContextHash(f.oQueVende, f.diferencial, f.infoExtra);
   const key = [
     f.macroSetor,
     f.microSetor,
     f.porte,
     [...f.estados].sort().join("|"),
     f.quantidade,
+    ctx,
   ].join("::");
   return key;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function curateWithClaude(prompt: string): Promise<string> {
-  return callClaude({ prompt, temperature: 0.5 });
+async function curateWithLlm(prompt: string): Promise<string> {
+  // Perplexity Agent (modelo de leads — google/gemini-3.1-flash-lite por padrão)
+  return callLLM({ prompt, temperature: 0.5, maxOutputTokens: 8000 });
 }
 
 function shufflePartially<T>(items: T[], shuffleRatio = 0.3, seed?: string): T[] {
@@ -175,9 +200,9 @@ export const generateLeads = createServerFn({ method: "POST" })
     log("begin", { userId: context.userId, quantidade: data.quantidade });
 
     try {
-      // Ensures Claude is configured early with a clear error
-      const keyStep = await step("check_claude_key", timings, async () => {
-        getClaudeApiKey();
+      // Ensures Perplexity is configured early with a clear error
+      const keyStep = await step("check_llm_key", timings, async () => {
+        getLlmApiKey();
         return true;
       });
       if (!keyStep.ok) {
@@ -185,7 +210,7 @@ export const generateLeads = createServerFn({ method: "POST" })
           ok: false,
           leads: [],
           cached: false,
-          stage: "check_claude_key",
+          stage: "check_llm_key",
           error: keyStep.error,
           timings,
         };
@@ -203,6 +228,9 @@ export const generateLeads = createServerFn({ method: "POST" })
         porte: data.porte,
         estados: data.estados,
         quantidade: data.quantidade,
+        oQueVende: data.oQueVende,
+        diferencial: data.diferencial,
+        infoExtra: data.infoExtra,
       });
 
       // ============= 1) CACHE =============
@@ -229,7 +257,7 @@ export const generateLeads = createServerFn({ method: "POST" })
         log("cache_skipped_by_user", { reason: "skipCache=true" });
       }
 
-      // Rate limit só quando cache não pega — vai chamar Claude + scraping em N sites.
+      // Rate limit só quando cache não pega — vai chamar o LLM + scraping em N sites.
       // 20 gerações/hora por usuário. Cache-hit não consome.
       const rl = checkRateLimit(userId, "generate_leads", 20, 60 * 60_000);
       if (!rl.ok) {
@@ -315,7 +343,7 @@ export const generateLeads = createServerFn({ method: "POST" })
       if (!rawText.trim()) rawText = `Nenhum resultado bruto para: ${query}`;
       rawText = `[motor_busca=free]\n\n${rawText}`;
 
-      // ============= 4) CLAUDE =============
+      // ============= 4) LLM (Perplexity) =============
       const excludeBlock = excludeList.length
         ? `EMPRESAS JÁ ENTREGUES OU REJEITADAS (NUNCA repetir):\n${excludeList.join(", ")}`
         : "";
@@ -354,8 +382,8 @@ Inclua entre ${Math.max(data.quantidade, Math.ceil(data.quantidade * 1.3))} e ${
 ## Texto bruto
 ${rawText.slice(0, 16000)}`;
 
-      const curateStep = await step("claude_curate", timings, async () => {
-        const text = await curateWithClaude(prompt);
+      const llmStep = await step("llm_curate", timings, async () => {
+        const text = await curateWithLlm(prompt);
         let cleaned = text
           .replace(/^```json\s*/im, "")
           .replace(/^```\s*/im, "")
@@ -375,18 +403,18 @@ ${rawText.slice(0, 16000)}`;
         const validated = z.object({ leads: z.array(LeadSchema) }).parse(parsed);
         return validated.leads;
       });
-      if (!curateStep.ok) {
+      if (!llmStep.ok) {
         return {
           ok: false,
           leads: [],
           cached: false,
-          stage: "claude_curate",
-          error: curateStep.error,
+          stage: "llm_curate",
+          error: llmStep.error,
           timings,
         };
       }
-      const parsedLeads = curateStep.value;
-      log("claude_result", { count: parsedLeads.length });
+      const parsedLeads = llmStep.value;
+      log("llm_result", { count: parsedLeads.length });
 
       // ============= 5) FILTRO =============
       const filtered = parsedLeads.filter((l) => {
@@ -472,6 +500,11 @@ ${rawText.slice(0, 16000)}`;
                 produtos: [],
                 servicos: [],
                 resumo_site: "",
+                contatos: [],
+                whatsapp: null,
+                telefone_fixo: null,
+                telefone_comercial: null,
+                sac: null,
               };
             }
 
@@ -513,6 +546,12 @@ ${rawText.slice(0, 16000)}`;
               produtos: free.produtos,
               servicos: free.servicos,
               resumo_site: free.resumo_site,
+              whatsapp: free.whatsapp ?? null,
+              telefone_fixo: free.telefone_fixo ?? null,
+              telefone_comercial: free.telefone_comercial ?? null,
+              sac: free.sac ?? null,
+              contatos: free.contatos ?? [],
+              decisionMakers: [],
             };
             return lead;
           }),
@@ -551,6 +590,38 @@ ${rawText.slice(0, 16000)}`;
 
       enriched = enriched.slice(0, data.quantidade);
       log("ranked", { count: enriched.length, randomized });
+
+      // ============= 8b) TOMADORES DE DECISÃO (antes do Kanban) =============
+      // Falha na busca de TDs NÃO invalida o lead. Concorrência limitada.
+      const tdStep = await step("decision_makers", timings, async () => {
+        const ctxOpts = {
+          oQueVende: data.oQueVende,
+          diferencial: data.diferencial,
+          infoExtra: data.infoExtra,
+        };
+        const withTds = await mapWithConcurrency(enriched, 2, async (lead) => {
+          try {
+            const makers = await searchDecisionMakersForCompany(lead.empresa, ctxOpts);
+            return { ...lead, decisionMakers: makers };
+          } catch (err) {
+            log("td_error_non_fatal", {
+              empresa: lead.empresa,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            return { ...lead, decisionMakers: [] as LeadDecisionMaker[] };
+          }
+        });
+        return withTds;
+      });
+      if (tdStep.ok) {
+        enriched = tdStep.value;
+        log("decision_makers_done", {
+          count: enriched.length,
+          withTds: enriched.filter((l) => (l.decisionMakers?.length ?? 0) > 0).length,
+        });
+      } else {
+        log("decision_makers_failed_non_fatal", { error: tdStep.error });
+      }
 
       // ============= 9) PERSISTÊNCIA =============
       if (enriched.length > 0) {

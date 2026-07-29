@@ -1,5 +1,5 @@
 @import "./styles/tokens.css";
-@import "./styles/lummi.css";
+@import "./styles/leadforge.css";
 
 /* Scan this folder (src/) — do NOT use ../src (breaks Vite on Lovable) */
 @import "tailwindcss" source(none);
@@ -9,151 +9,216 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Publica Sans", "Outfit", "Segoe UI", system-ui, sans-serif;
   --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
-  --color-background: #010102;
-  --color-foreground: #f7f8f8;
-  --color-card: #0f1011;
-  --color-card-foreground: #f7f8f8;
-  --color-popover: #141516;
-  --color-popover-foreground: #f7f8f8;
-  --color-primary: #5e6ad2;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #18191a;
-  --color-secondary-foreground: #f7f8f8;
-  --color-muted: #18191a;
-  --color-muted-foreground: #8a8f98;
-  --color-accent: #5e6ad2;
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #e01e2c;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
+  /* Point Tailwind theme colors at CSS vars so they respond to data-theme */
+  --color-background: var(--lf-canvas);
+  --color-foreground: var(--lf-ink);
+  --color-card: var(--lf-surface-1);
+  --color-card-foreground: var(--lf-ink);
+  --color-popover: var(--lf-surface-2);
+  --color-popover-foreground: var(--lf-ink);
+  --color-primary: var(--lf-accent);
+  --color-primary-foreground: #f4efe3;
+  --color-secondary: var(--lf-surface-3);
+  --color-secondary-foreground: var(--lf-ink);
+  --color-muted: var(--lf-surface-3);
+  --color-muted-foreground: var(--lf-ink-subtle);
+  --color-accent: var(--lf-accent-hover);
+  --color-accent-foreground: #f4efe3;
+  --color-destructive: var(--lf-danger);
   --color-destructive-foreground: #ffffff;
-  --color-border: #23252a;
-  --color-input: #23252a;
-  --color-ring: #5e6ad2;
-}
-
-:root {
-  --radius: 8px;
-  --background: #010102;
-  --foreground: #f7f8f8;
-  --card: #0f1011;
-  --card-foreground: #f7f8f8;
-  --popover: #141516;
-  --popover-foreground: #f7f8f8;
-  --primary: #5e6ad2;
-  --primary-foreground: #ffffff;
-  --secondary: #18191a;
-  --secondary-foreground: #f7f8f8;
-  --muted: #18191a;
-  --muted-foreground: #8a8f98;
-  --accent: #5e6ad2;
-  --accent-foreground: #ffffff;
-  --destructive: #e01e2c;
-  --destructive-foreground: #ffffff;
-  --border: #23252a;
-  --input: #23252a;
-  --ring: #5e6ad2;
-  --gradient-hero: linear-gradient(180deg, #0f1011 0%, #010102 100%);
-  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --color-border: var(--lf-border);
+  --color-input: var(--lf-border);
+  --color-ring: var(--lf-accent-hover);
 }
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: var(--border);
   }
   html,
   body {
-    background-color: #010102 !important;
-    color: #f7f8f8 !important;
-    font-family: "Inter", "Inter Variable", system-ui, sans-serif !important;
+    background-color: var(--cy-content-bg) !important;
+    color: var(--cy-content-ink) !important;
+    font-family: "Publica Sans", "Outfit", "Segoe UI", system-ui, sans-serif !important;
     -webkit-font-smoothing: antialiased;
   }
 }
 
-/* ===== FORCE DARK CONTRAST FIXES ===== */
-input,
+/* ===== Form controls — theme aware ===== */
+input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
-  background-color: #141516 !important;
-  color: #f7f8f8 !important;
-  border-color: #23252a !important;
+  background-color: var(--cy-input-bg) !important;
+  color: var(--cy-content-ink) !important;
+  border-color: var(--cy-card-border) !important;
 }
 input::placeholder,
 textarea::placeholder {
-  color: #62666d !important;
+  color: var(--cy-muted) !important;
+  opacity: 0.85;
 }
 
-.bg-white,
-[class*="bg-white"] {
-  background-color: #141516 !important;
-  color: #f7f8f8 !important;
-}
-
-.bg-card {
-  background-color: #0f1011 !important;
-  color: #f7f8f8 !important;
-  border-color: #23252a !important;
-}
-
-button.rounded-full {
-  border-color: #34343a !important;
-}
-button.rounded-full:not([class*="bg-primary"]):not([class*="bg-foreground"]):not(
-    [class*="bg-gradient"]
-  ) {
-  background-color: #18191a !important;
-  color: #d0d6e0 !important;
-}
-button.rounded-full.bg-foreground,
-button.rounded-full[class*="bg-foreground"] {
-  background-color: #5e6ad2 !important;
-  color: #ffffff !important;
-  border-color: #5e6ad2 !important;
-}
-
-.text-foreground {
-  color: #f7f8f8 !important;
-}
-.text-muted-foreground {
-  color: #8a8f98 !important;
-}
-.text-white {
-  color: #f7f8f8 !important;
-}
-
+/* Hero gradient always brand */
 .bg-hero-gradient {
-  background: linear-gradient(180deg, #0f1011 0%, #010102 100%) !important;
+  background: linear-gradient(120deg, #072a31 0%, #0f4c5c 55%, #2e7a85 100%) !important;
 }
 
 button.bg-gradient-to-r {
-  background: linear-gradient(90deg, #5e6ad2 0%, #7b87e8 100%) !important;
-  box-shadow: 0 4px 20px rgba(94, 106, 210, 0.35) !important;
+  background: linear-gradient(120deg, #072a31, #2e7a85) !important;
+  box-shadow: 0 4px 20px rgba(46, 122, 133, 0.35) !important;
 }
 
-.bg-secondary,
-.bg-secondary\/40,
-.bg-secondary\/30 {
-  background-color: #18191a !important;
+.bg-primary {
+  background-color: #0f4c5c !important;
+}
+.text-primary {
+  color: #0f4c5c !important;
+}
+[data-theme="dark"] .text-primary,
+html.dark .text-primary {
+  color: #7fb0b4 !important;
+}
+.border-primary {
+  border-color: #2e7a85 !important;
 }
 
-.border-border {
-  border-color: #23252a !important;
+/* Bridge: map common hardcoded dark surfaces → theme vars
+   so legacy pages (crm, admin, prospeccao) respond to toggle */
+[data-theme="light"] .bg-\[\#0B3A44\],
+[data-theme="light"] [class*="bg-[#0B3A44]"] {
+  background-color: var(--cy-card) !important;
+}
+/* A sidebar (aside e barra mobile em AppSidebar.tsx) marca-se com
+   data-sidebar-fixed e fica de fora desta ponte — ela deve permanecer
+   sempre escura nos dois temas. Qualquer outro elemento com essa cor
+   hardcoded continua trocando para o fundo claro normalmente. */
+[data-theme="light"] .bg-\[\#072A31\]:not([data-sidebar-fixed]) {
+  background-color: var(--cy-content-bg) !important;
+}
+[data-theme="light"] .bg-\[\#0d3842\] {
+  background-color: var(--cy-input-bg) !important;
+}
+[data-theme="light"] .bg-\[\#124955\] {
+  background-color: var(--cy-surface-hover) !important;
+}
+[data-theme="light"] .text-\[\#F4EFE3\] {
+  color: var(--cy-content-ink) !important;
+}
+[data-theme="light"] .text-\[\#7FB0B4\] {
+  color: var(--cy-muted) !important;
+}
+[data-theme="light"] .text-\[\#c8d8da\] {
+  color: var(--cy-muted) !important;
+}
+[data-theme="light"] .border-\[\#1a4a55\] {
+  border-color: var(--cy-card-border) !important;
+}
+[data-theme="light"] .border-\[\#2a6570\] {
+  border-color: var(--cy-card-border) !important;
 }
 
-.divide-border > * + * {
-  border-color: #1a1b1e !important;
+/* Utility */
+.bg-hero-gradient {
+  background: var(--gradient-hero) !important;
 }
-
-.rounded-3xl {
-  border-radius: 12px !important;
-  border: 1px solid #23252a !important;
+.shadow-card-soft {
+  box-shadow: var(--shadow-card);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #34343a;
+  background: var(--lf-border-strong);
+}
+
+/* Extra light-mode bridges for common dark-theme hardcodes */
+[data-theme="light"] .hover\:bg-\[\#1a5560\]:hover,
+[data-theme="light"] .hover\:bg-\[\#124955\]:hover {
+  background-color: var(--cy-surface-hover) !important;
+}
+[data-theme="light"] .text-\[\#c8d8da\] {
+  color: var(--cy-muted) !important;
+}
+[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(15, 76, 92, 0.08) !important;
+}
+[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(15, 76, 92, 0.05) !important;
+}
+[data-theme="light"] .border-white\/8,
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/15 {
+  border-color: var(--cy-card-border) !important;
+}
+[data-theme="light"] .text-white {
+  /* only override when NOT inside a known dark surface */
+}
+[data-theme="light"] .placeholder\:text-\[\#7FB0B4\]::placeholder {
+  color: var(--cy-muted) !important;
+}
+
+/* ===== SIDEBAR FIXED DARK (item 7) =====
+   Sidebar permanece petróleo nos dois temas. Isola filhos de pontes light. */
+[data-sidebar-fixed="true"],
+[data-sidebar-fixed="true"] * {
+  /* não herdar overrides de ponte light para texto branco */
+}
+
+[data-theme="light"] [data-sidebar-fixed="true"],
+[data-theme="light"] [data-sidebar-fixed="true"].bg-\[\#072A31\],
+html:not(.dark) [data-sidebar-fixed="true"] {
+  background-color: #072a31 !important;
+  color: #f4efe3 !important;
+  border-color: rgba(15, 76, 92, 0.4) !important;
+}
+
+[data-theme="light"] [data-sidebar-fixed="true"] .text-\[\#F4EFE3\],
+[data-theme="light"] [data-sidebar-fixed="true"] .text-white,
+[data-theme="light"] [data-sidebar-fixed="true"] a,
+[data-theme="light"] [data-sidebar-fixed="true"] button,
+[data-theme="light"] [data-sidebar-fixed="true"] span,
+[data-theme="light"] [data-sidebar-fixed="true"] p {
+  color: #f4efe3 !important;
+}
+
+[data-theme="light"] [data-sidebar-fixed="true"] .text-\[\#7FB0B4\],
+[data-theme="light"] [data-sidebar-fixed="true"] .text-\[\#c8d8da\] {
+  color: #7fb0b4 !important;
+}
+
+[data-theme="light"] [data-sidebar-fixed="true"] .bg-white\/5,
+[data-theme="light"] [data-sidebar-fixed="true"] .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] [data-sidebar-fixed="true"] .border-white\/8,
+[data-theme="light"] [data-sidebar-fixed="true"] .border-white\/10,
+[data-theme="light"] [data-sidebar-fixed="true"] .border-white\/15 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Focus visível — contraste WCAG para teclado */
+:focus-visible {
+  outline: 2px solid var(--lf-accent-hover);
+  outline-offset: 2px;
+}
+
+/* Inputs: contraste de placeholder reforçado (AA sobre fundo claro) */
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #3a4f54 !important;
+  opacity: 0.9;
+}
+
+/* Texto muted em light: garantir contraste ≥ 4.5:1 sobre canvas #F4EFE3 */
+[data-theme="light"] {
+  --cy-muted: #2f4348;
+  --lf-ink-subtle: #2f4348;
+  --lf-ink-faint: #3a4f54;
+  --muted-foreground: #2f4348;
 }

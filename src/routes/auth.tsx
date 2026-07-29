@@ -88,7 +88,7 @@ function AuthPage() {
     //  1) Google Cloud Console: OAuth client ID + redirect URI = https://<project>.supabase.co/auth/v1/callback
     //  2) Supabase → Authentication → Providers → Google: cola Client ID + Secret
     //  3) Supabase → Authentication → URL Configuration: Site URL + Additional Redirect URLs
-    //     apontando pra window.location.origin (o domínio do Lummi).
+    //     apontando pra window.location.origin (o domínio do LeadForge).
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
@@ -101,7 +101,7 @@ function AuthPage() {
       <div className="w-full max-w-md">
         <div className="text-white text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur text-xs font-semibold tracking-wide">
-            <Sparkles className="w-3.5 h-3.5" /> LUMMI
+            <Sparkles className="w-3.5 h-3.5" /> LEADFORGE
           </div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight">
             {mode === "signin"
@@ -207,8 +207,8 @@ function AuthPage() {
               disabled={loading}
               className={cn(
                 "w-full h-12 rounded-2xl text-sm font-bold text-white transition-all",
-                "bg-gradient-to-r from-[oklch(0.65_0.24_15)] via-[oklch(0.55_0.26_340)] to-[oklch(0.5_0.24_290)]",
-                "shadow-[0_10px_30px_-10px_oklch(0.55_0.26_340/0.6)] disabled:opacity-50",
+                "bg-gradient-to-r from-[#072A31] via-[#0F4C5C] to-[#2E7A85]",
+                "shadow-[0_10px_30px_-10px_rgba(46,122,133,0.55)] disabled:opacity-50",
               )}
             >
               {loading ? (

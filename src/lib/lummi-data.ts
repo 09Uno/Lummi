@@ -24,6 +24,23 @@ export interface ChannelFinding {
   findings: string;
 }
 
+export interface SourceRef {
+  value: string;
+  source: string;
+  url?: string;
+}
+
+export interface DecisionMaker {
+  name: string;
+  title: string;
+  area?: string;
+  priority?: number;
+  score?: number;
+  linkedinUrl?: string;
+  company?: string;
+  notes?: string;
+}
+
 export interface CompanyReport {
   id: string;
   // identidade
@@ -31,12 +48,16 @@ export interface CompanyReport {
   tradeName: string;
   legalName: string;
   cnpj: string;
+  cnpjSources: SourceRef[];
   website: string;
   linkedinUrl: string;
   // perfil corporativo
   segment: string;
   foundedYear: string;
   headquarters: string;
+  headquartersSources: SourceRef[];
+  headquartersDivergence: boolean;
+  headquartersNote: string;
   employees: string;
   employeeSource?: string;
   employeeUpdatedAt?: string;
@@ -59,6 +80,7 @@ export interface CompanyReport {
     justification: string;
   };
   // ação comercial
+  decisionMakers: DecisionMaker[];
   fitScore: number;
   recommendedApproach: string[];
   attentionPoints: string[];
@@ -81,9 +103,13 @@ interface AiReport {
   tradeName?: string;
   legalName?: string;
   cnpj?: string;
+  cnpjSources?: Array<{ cnpj?: string; source?: string; url?: string }>;
   website?: string;
   linkedinUrl?: string;
   headquarters?: string;
+  headquartersSources?: Array<{ address?: string; source?: string; url?: string }>;
+  headquartersDivergence?: boolean;
+  headquartersNote?: string;
   foundedYear?: string | number;
   employees?: string | number;
   employeeSource?: string;
@@ -114,12 +140,39 @@ interface AiReport {
   educationalMaturity?: { level?: string; justification?: string };
   recommendedApproach?: string[];
   attentionPoints?: string[];
+  decisionMakers?: Array<{
+    name?: string;
+    title?: string;
+    cargo?: string;
+    area?: string;
+    priority?: number;
+    score?: number;
+    linkedinUrl?: string;
+    linkedin?: string;
+    company?: string;
+    notes?: string;
+    historico?: string;
+  }>;
   fit?: { score?: number; opportunities?: string[]; risks?: string[] };
   discoveryQuestions?: string[];
   dataCoverage?: string;
 }
 
 const NA = "Informação não localizada em fontes abertas";
+
+function normSources<T extends { source?: string; url?: string }>(
+  list: T[] | undefined,
+  getValue: (item: T) => string | undefined,
+): SourceRef[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((item) => ({
+      value: (getValue(item) || "").trim(),
+      source: (item.source || "").trim(),
+      url: (item.url || "").trim() || undefined,
+    }))
+    .filter((s) => s.value && s.source);
+}
 
 const toArr = (v: unknown): string[] =>
   Array.isArray(v) ? v.map(String).filter(Boolean) : v ? [String(v)] : [];
@@ -213,6 +266,49 @@ function fitFromMaturity(level: EducationalMaturity, aiScore?: number): number {
   return map[level];
 }
 
+function normalizeDecisionMakers(
+  list?: Array<{
+    name?: string;
+    title?: string;
+    cargo?: string;
+    area?: string;
+    priority?: number;
+    score?: number;
+    linkedinUrl?: string;
+    linkedin?: string;
+    company?: string;
+    notes?: string;
+    historico?: string;
+  }>,
+): DecisionMaker[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((d) => {
+      const name = (d.name || "").trim();
+      const title = (d.title || d.cargo || "").trim();
+      let linkedinUrl = (d.linkedinUrl || d.linkedin || "").trim() || undefined;
+      if (linkedinUrl && !/^https?:\/\//i.test(linkedinUrl)) {
+        linkedinUrl = linkedinUrl.includes("linkedin.com")
+          ? `https://${linkedinUrl.replace(/^\/+/, "")}`
+          : undefined;
+      }
+      const priority = typeof d.priority === "number" ? d.priority : undefined;
+      const score = typeof d.score === "number" ? d.score : undefined;
+      return {
+        name,
+        title,
+        area: (d.area || "").trim() || undefined,
+        priority,
+        score,
+        linkedinUrl,
+        company: (d.company || "").trim() || undefined,
+        notes: (d.notes || d.historico || "").trim() || undefined,
+      };
+    })
+    .filter((d) => d.name)
+    .sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
+}
+
 export function mapAiToReport(
   ai: AiReport,
   fallbackName: string,
@@ -235,11 +331,15 @@ export function mapAiToReport(
     tradeName: toStr(ai.tradeName, name),
     legalName: toStr(ai.legalName),
     cnpj: toStr(ai.cnpj),
+    cnpjSources: normSources(ai.cnpjSources, (s) => s.cnpj),
     website: cleanWebsite(ai.website),
     linkedinUrl: toStr(ai.linkedinUrl, ""),
     segment: toStr(ai.industry),
     foundedYear: toStr(ai.foundedYear),
     headquarters: toStr(ai.headquarters),
+    headquartersSources: normSources(ai.headquartersSources, (s) => s.address),
+    headquartersDivergence: Boolean(ai.headquartersDivergence),
+    headquartersNote: (ai.headquartersNote || "").trim(),
     employees: toStr(ai.employees),
     employeeSource: ai.employeeSource?.trim() || undefined,
     employeeUpdatedAt: ai.employeeUpdatedAt?.trim() || undefined,
@@ -259,6 +359,7 @@ export function mapAiToReport(
       level: eduLevel,
       justification: toStr(ai.educationalMaturity?.justification, "Justificativa não fornecida."),
     },
+    decisionMakers: normalizeDecisionMakers(ai.decisionMakers),
     fitScore: +fitScore.toFixed(1),
     recommendedApproach: toArr(ai.recommendedApproach),
     attentionPoints: toArr(ai.attentionPoints),

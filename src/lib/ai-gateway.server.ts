@@ -1,162 +1,254 @@
 /**
- * Anthropic Claude via REST API (sem SDK — evita deps extras).
- * Preserva a mesma estrutura que existia com Gemini: fallback de modelos,
- * retry em 429/503/529, timeout via AbortSignal, mensagens amigáveis.
+ * LLM gateway — Perplexity Agent API only (LeadForge Insight + leads).
+ *
+ * Secrets (Lovable Cloud / server env):
+ *   PERPLEXITY_API_KEY           — obrigatório
+ *   PERPLEXITY_MODEL_LEADS       — opcional (default: google/gemini-3.1-flash-lite)
+ *   PERPLEXITY_MODEL_DOSSIE      — opcional (default: anthropic/claude-haiku-4-5)
+ *   PERPLEXITY_MODEL_DECISORES   — opcional (default: openai/gpt-5-mini)
+ *
+ * Endpoint único:
+ *   POST https://api.perplexity.ai/v1/agent
+ *
+ * BUILD_STAMP=20260727-perplexity-only
  */
 
-export function getClaudeApiKey(): string {
-  const key = process.env.ANTHROPIC_API_KEY?.trim() || process.env.CLAUDE_API_KEY?.trim() || "";
+export const LEADFORGE_AI_BUILD = "20260727-perplexity-only";
+
+const PERPLEXITY_AGENT_URL = "https://api.perplexity.ai/v1/agent";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// ---------------------------------------------------------------------------
+// Keys & default models
+// ---------------------------------------------------------------------------
+
+export function getPerplexityApiKey(): string {
+  const key = process.env.PERPLEXITY_API_KEY?.trim() || "";
   if (!key) {
-    throw new Error("Chave da Anthropic ausente. Defina ANTHROPIC_API_KEY no .env.");
+    throw new Error(
+      `[LeadForge AI/${LEADFORGE_AI_BUILD}] Chave da Perplexity ausente. Defina PERPLEXITY_API_KEY nos Secrets do Lovable Cloud.`,
+    );
   }
   return key;
 }
 
-/** Modelo preferido + fallbacks para o caso do principal estar indisponível. */
-const CLAUDE_MODEL_CANDIDATES = [
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-haiku-4-5-20251001",
-] as const;
-
-export function getClaudeModelId(): string {
-  return process.env.CLAUDE_MODEL?.trim() || CLAUDE_MODEL_CANDIDATES[0];
+/** @deprecated alias — prefer getPerplexityApiKey */
+export function getLlmApiKey(): string {
+  return getPerplexityApiKey();
 }
 
-function modelCandidates(preferred?: string): string[] {
-  const primary = preferred?.trim() || getClaudeModelId();
-  const rest = CLAUDE_MODEL_CANDIDATES.filter((m) => m !== primary);
-  return [primary, ...rest];
+export function getPerplexityModelLeads(): string {
+  return process.env.PERPLEXITY_MODEL_LEADS?.trim() || "google/gemini-3.1-flash-lite";
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function isModelUnavailableError(msg: string): boolean {
-  return /not_found_error|model.*not.*found|model.*not.*available|invalid.*model/i.test(msg);
+export function getPerplexityModelDossie(): string {
+  return process.env.PERPLEXITY_MODEL_DOSSIE?.trim() || "anthropic/claude-haiku-4-5";
 }
 
-/**
- * Ferramenta server-side de web search da Anthropic. É executada pela própria API
- * — o modelo dispara buscas durante o turno e recebe os resultados sem round-trip.
- * Passamos como opção para não obrigar todo caller a usar.
- */
-export interface ClaudeWebSearchTool {
-  type: "web_search_20250305";
-  name: "web_search";
-  max_uses?: number;
-  allowed_domains?: string[];
-  blocked_domains?: string[];
+export function getPerplexityModelDecisores(): string {
+  return process.env.PERPLEXITY_MODEL_DECISORES?.trim() || "openai/gpt-5-mini";
 }
 
-/**
- * Chama Claude Messages API e retorna a string de texto.
- * Retry em rate limit / transient / overloaded (529) e fallback para modelos alternativos.
- * Se `tools` for informado, o modelo pode usá-las durante a resposta — extraímos apenas
- * os blocos `text` do content array final (ignora server_tool_use / web_search_tool_result).
- */
-export async function callClaude(opts: {
-  prompt: string;
-  temperature?: number;
-  apiKey?: string;
+/** @deprecated — use getPerplexityModelDossie */
+export function getPerplexityModelId(): string {
+  return getPerplexityModelDossie();
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type PerplexityTool =
+  | {
+      type: "web_search";
+      search_context_size?: "low" | "medium" | "high";
+      max_tokens?: number;
+      max_tokens_per_page?: number;
+      max_results?: number;
+      filters?: Record<string, unknown>;
+    }
+  | {
+      type: "people_search";
+      max_tokens?: number;
+      max_tokens_per_page?: number;
+      max_results_per_query?: number;
+      max_results_per_request?: number;
+    }
+  | { type: "fetch_url" }
+  | { type: "finance_search" }
+  | { type: string; [key: string]: unknown };
+
+type PerplexityAgentResponse = {
+  id?: string;
+  output?: Array<{
+    type?: string;
+    content?: Array<{ type?: string; text?: string }>;
+    text?: string;
+  }>;
+  output_text?: string;
+  error?: { message?: string; type?: string; code?: string };
+  usage?: unknown;
+};
+
+export type CallPerplexityAgentOpts = {
+  instructions: string;
+  input: string;
   model?: string;
-  maxTokens?: number;
-  tools?: ClaudeWebSearchTool[];
-  timeoutMs?: number;
-}): Promise<string> {
-  const apiKey = opts.apiKey ?? getClaudeApiKey();
-  const temperature = opts.temperature ?? 0.2;
-  const maxTokens = opts.maxTokens ?? 8192;
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-  const models = modelCandidates(opts.model);
+  maxSteps?: number;
+  maxOutputTokens?: number;
+  reasoningEffort?: "low" | "medium" | "high";
+  tools?: PerplexityTool[];
+  apiKey?: string;
+};
 
-  let lastError: unknown;
+// ---------------------------------------------------------------------------
+// Response extraction
+// ---------------------------------------------------------------------------
 
-  for (const model of models) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const body: Record<string, unknown> = {
-          model,
-          max_tokens: maxTokens,
-          temperature,
-          messages: [{ role: "user", content: opts.prompt }],
-        };
-        if (opts.tools?.length) body.tools = opts.tools;
-
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify(body),
-          // Dossiê com web search pode disparar múltiplas buscas antes da resposta final.
-          // Sem signal, o worker Node fica pendurado se a Anthropic travar a conexão.
-          signal: AbortSignal.timeout(timeoutMs),
-        });
-
-        // 429 rate limit, 503 unavailable, 529 overloaded
-        if (res.status === 429 || res.status === 503 || res.status === 529) {
-          lastError = new Error(`Claude HTTP ${res.status} (${model})`);
-          if (attempt < 2) {
-            await sleep(2000 * (attempt + 1));
-            continue;
-          }
-          break;
+function extractPerplexityText(json: PerplexityAgentResponse): string {
+  if (typeof json.output_text === "string" && json.output_text.trim()) {
+    return json.output_text.trim();
+  }
+  const parts: string[] = [];
+  for (const item of json.output ?? []) {
+    if (item.type === "message" || !item.type) {
+      if (typeof item.text === "string" && item.text.trim()) {
+        parts.push(item.text.trim());
+      }
+      for (const c of item.content ?? []) {
+        if (
+          (c.type === "output_text" || c.type === "text" || !c.type) &&
+          typeof c.text === "string" &&
+          c.text.trim()
+        ) {
+          parts.push(c.text.trim());
         }
-
-        const json = (await res.json()) as {
-          error?: { message?: string; type?: string };
-          content?: Array<{ type: string; text?: string }>;
-          stop_reason?: string;
-        };
-
-        if (!res.ok) {
-          const msg = json?.error?.message || `Claude HTTP ${res.status}`;
-          lastError = new Error(`${msg} [${model}]`);
-
-          // Modelo desativado / não encontrado — tenta o próximo da lista
-          if (isModelUnavailableError(msg) || res.status === 404) {
-            break;
-          }
-
-          // Chave inválida / sem permissão — não adianta tentar outros modelos
-          if (res.status === 401 || res.status === 403) {
-            throw lastError;
-          }
-
-          if (attempt < 2) {
-            await sleep(2000 * (attempt + 1));
-            continue;
-          }
-          break;
-        }
-
-        const text = json?.content
-          ?.filter((c) => c.type === "text")
-          .map((c) => c.text ?? "")
-          .join("")
-          .trim();
-
-        if (!text) {
-          lastError = new Error(`Resposta vazia do Claude [${model}]`);
-          break;
-        }
-        return text;
-      } catch (err) {
-        lastError = err;
-        const msg = err instanceof Error ? err.message : String(err);
-        if (isModelUnavailableError(msg)) break;
-        const retryable = /429|503|529|rate|quota|overloaded|fetch|network|timeout|aborted/i.test(
-          msg,
-        );
-        if (!retryable || attempt === 2) break;
-        await sleep(2000 * (attempt + 1));
       }
     }
   }
+  return parts.join("\n").trim();
+}
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(`Falha ao contatar Claude: ${String(lastError)}`);
+// ---------------------------------------------------------------------------
+// Core client
+// ---------------------------------------------------------------------------
+
+export async function callPerplexityAgent(opts: CallPerplexityAgentOpts): Promise<string> {
+  const apiKey = opts.apiKey ?? getPerplexityApiKey();
+  const model = opts.model ?? getPerplexityModelDossie();
+  const maxSteps = opts.maxSteps ?? 5;
+  const maxOutputTokens = opts.maxOutputTokens ?? 16000;
+  const reasoningEffort = opts.reasoningEffort ?? "medium";
+  const tools = opts.tools ?? [];
+
+  console.log(
+    `[LeadForge AI/${LEADFORGE_AI_BUILD}] Perplexity Agent model=${model} steps=${maxSteps} tools=${tools.map((t) => t.type).join(",") || "none"}`,
+  );
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const body: Record<string, unknown> = {
+        model,
+        instructions: opts.instructions,
+        input: opts.input,
+        max_steps: maxSteps,
+        max_output_tokens: maxOutputTokens,
+        reasoning: { effort: reasoningEffort },
+      };
+
+      if (tools.length > 0) {
+        body.tools = tools;
+      }
+
+      const res = await fetch(PERPLEXITY_AGENT_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const json = (await res.json()) as PerplexityAgentResponse;
+
+      if (!res.ok || json.error) {
+        const msg =
+          json.error?.message ||
+          `Perplexity HTTP ${res.status}${json.error?.type ? ` (${json.error.type})` : ""}`;
+        lastError = new Error(`[LeadForge AI/${LEADFORGE_AI_BUILD}] ${msg} [${model}]`);
+        console.warn(`[LeadForge AI/${LEADFORGE_AI_BUILD}] Perplexity falhou`, model, msg);
+
+        if (res.status === 401 || res.status === 403) {
+          throw lastError;
+        }
+        if ((res.status === 429 || res.status === 503) && attempt < 2) {
+          await sleep(2000 * (attempt + 1));
+          continue;
+        }
+        if (attempt < 2) {
+          await sleep(1500 * (attempt + 1));
+          continue;
+        }
+        break;
+      }
+
+      const text = extractPerplexityText(json);
+      if (!text) {
+        lastError = new Error(
+          `[LeadForge AI/${LEADFORGE_AI_BUILD}] Resposta vazia da Perplexity Agent [${model}]`,
+        );
+        if (attempt < 2) {
+          await sleep(1500 * (attempt + 1));
+          continue;
+        }
+        break;
+      }
+
+      console.log(
+        `[LeadForge AI/${LEADFORGE_AI_BUILD}] Perplexity Agent OK:`,
+        model,
+        `(${text.length} chars)`,
+      );
+      return text;
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/401|403|Unauthorized|API key|PERMISSION|invalid/i.test(msg)) {
+        throw lastError instanceof Error ? lastError : new Error(msg);
+      }
+      const retryable = /429|503|rate|quota|fetch|network|timeout|ECONNRESET/i.test(msg);
+      if (!retryable || attempt === 2) break;
+      await sleep(2000 * (attempt + 1));
+    }
+  }
+
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `[LeadForge AI/${LEADFORGE_AI_BUILD}] Falha ao contatar a Perplexity Agent API: ${detail}`,
+  );
+}
+
+/**
+ * Compatibilidade: curadoria de texto (leads) sem tools.
+ */
+export async function callLLM(opts: {
+  prompt: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  model?: string;
+}): Promise<string> {
+  return callPerplexityAgent({
+    model: opts.model ?? getPerplexityModelLeads(),
+    instructions:
+      "Você é um analista de inteligência de mercado B2B. Siga as instruções do input à risca. Não invente absolutamente NADA. Retorne apenas o formato solicitado, sem markdown extra.",
+    input: opts.prompt,
+    maxSteps: 1,
+    maxOutputTokens: opts.maxOutputTokens ?? 8000,
+    reasoningEffort: "low",
+    tools: [],
+  });
 }

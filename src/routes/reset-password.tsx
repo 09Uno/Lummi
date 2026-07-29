@@ -64,7 +64,7 @@ function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-white text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur text-xs font-semibold tracking-wide">
-            <Sparkles className="w-3.5 h-3.5" /> LUMMI
+            <Sparkles className="w-3.5 h-3.5" /> LEADFORGE
           </div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Nova senha</h1>
           <p className="mt-2 text-white/80 text-sm">
@@ -100,7 +100,7 @@ function ResetPasswordPage() {
                 disabled={loading}
                 className={cn(
                   "w-full h-12 rounded-2xl text-sm font-bold text-white transition-all",
-                  "bg-gradient-to-r from-[oklch(0.65_0.24_15)] via-[oklch(0.55_0.26_340)] to-[oklch(0.5_0.24_290)]",
+                  "bg-gradient-to-r from-[#072A31] via-[#0F4C5C] to-[#2E7A85]",
                   "disabled:opacity-50",
                 )}
               >

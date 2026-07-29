@@ -41,7 +41,7 @@ export function CompanyLogo({
       <div
         className={cn(
           "w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shrink-0",
-          "bg-gradient-to-br from-[oklch(0.65_0.24_15)] via-[oklch(0.55_0.26_340)] to-[oklch(0.5_0.24_290)]",
+          "bg-gradient-to-br from-[#072A31] via-[#0F4C5C] to-[#2E7A85]",
           className,
         )}
       >

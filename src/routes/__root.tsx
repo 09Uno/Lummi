@@ -9,10 +9,11 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
-// Side-effect import ensures Vite always processes the stylesheet
 import "../styles.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { THEME_BOOTSTRAP_SCRIPT } from "../hooks/useTheme";
+import { AuthProvider } from "../hooks/useAuth";
 
 function NotFoundComponent() {
   return (
@@ -31,7 +32,7 @@ function NotFoundComponent() {
             Voltar ao início
           </Link>
           <a
-            href="mailto:suporte@lummi.app"
+            href="mailto:suporte@leadforge.app"
             className="inline-flex items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary transition"
           >
             Falar com suporte
@@ -85,28 +86,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lummi — Prospecção B2B com IA" },
+      { title: "LeadForge — Prospecção B2B com IA" },
       {
         name: "description",
         content:
-          "Gere listas de leads B2B qualificadas combinando web search e curadoria por IA com exportação para o Hubspot",
+          "Gere listas de leads B2B qualificadas combinando web search e curadoria por IA, com CRM Kanban integrado",
       },
-      { name: "author", content: "Lummi" },
+      { name: "author", content: "LeadForge" },
       { name: "google", content: "notranslate" },
       { name: "googlebot", content: "notranslate" },
-      { property: "og:title", content: "Lummi — Prospecção B2B com IA" },
+      { property: "og:title", content: "LeadForge — Prospecção B2B com IA" },
       {
         property: "og:description",
         content:
-          "Gere listas de leads B2B qualificadas combinando web search e curadoria por IA com exportação para o Hubspot",
+          "Gere listas de leads B2B qualificadas combinando web search e curadoria por IA, com CRM Kanban integrado",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Lummi — Prospecção B2B com IA" },
+      { name: "twitter:title", content: "LeadForge — Prospecção B2B com IA" },
       {
         name: "twitter:description",
         content:
-          "Gere listas de leads B2B qualificadas combinando web search e curadoria por IA com exportação para o Hubspot",
+          "Gere listas de leads B2B qualificadas combinando web search e curadoria por IA, com CRM Kanban integrado",
       },
       {
         property: "og:image",
@@ -125,9 +126,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap",
       },
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -138,11 +139,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" translate="no">
+    <html lang="pt-BR" translate="no" data-theme="light" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: THEME_BOOTSTRAP_SCRIPT,
+          }}
+        />
         <HeadContent />
       </head>
-      <body className="notranslate" translate="no">
+      <body className="notranslate" translate="no" suppressHydrationWarning>
         {children}
         <Scripts />
       </body>
@@ -155,8 +161,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthProvider>
+        <Outlet />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

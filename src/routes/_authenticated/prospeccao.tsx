@@ -1,157 +1,75 @@
-import { exportLeadsToHubspot } from "@/lib/hubspot.functions";
-import type { HubspotLeadResult } from "@/lib/hubspot.functions";
+import { importLeadsToCrm } from "@/lib/crm.functions";
+import { listTeamSdrs } from "@/lib/rbac/admin.functions";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePersistedRouteState } from "@/hooks/usePersistedRouteState";
 import {
   Loader2,
   Sparkles,
-  Building2,
   MapPin,
   Check,
   Globe,
   Linkedin,
   LogOut,
   FileSpreadsheet,
-  ShieldCheck,
-  ShieldAlert,
   ThumbsUp,
   ThumbsDown,
   Brain,
   ArrowLeft,
   CheckSquare,
   Square,
+  Kanban,
+  X,
+  Users,
 } from "lucide-react";
 import { generateIntelligenceReport } from "@/lib/intelligence-report.functions";
+import { LeadImportModal } from "@/components/leads/LeadImportModal";
 import { generateLeads, submitLeadFeedback } from "@/lib/leads.functions";
 import type { EnrichedLead } from "@/lib/leads.functions";
+import { commercialContextHash } from "@/lib/decision-makers";
+import { ICP_SECTOR_CATALOG } from "@/lib/icp-sector-catalog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
+import { MODULE_ROLES } from "@/lib/rbac/types";
 import { LeadRow } from "@/components/ui/LeadRow";
 
 export const Route = createFileRoute("/_authenticated/prospeccao")({
-  component: Index,
+  component: () => (
+    <ProtectedRoute requiredRoles={MODULE_ROLES.prospeccao}>
+      <Index />
+    </ProtectedRoute>
+  ),
 });
 
-const SETORES: Record<string, string[]> = {
-  "Construção e Imobiliário": [
-    "Construtoras",
-    "Incorporadoras",
-    "Imobiliárias",
-    "Arquitetura e Engenharia",
-    "Gestão de Condomínios",
-  ],
-  Agronegócio: [
-    "Produção Agrícola",
-    "Pecuária",
-    "Distribuição de Insumos",
-    "Cooperativas Agroindustriais",
-    "Maquinário",
-  ],
-  "Indústria e Manufatura": [
-    "Indústria Alimentícia",
-    "Bens de Consumo",
-    "Metalurgia",
-    "Indústria Automotiva",
-    "Embalagens",
-  ],
-  "Varejo e Atacado": [
-    "Supermercados",
-    "Franquias",
-    "Atacarejo",
-    "Vestuário",
-    "Material de Construção",
-    "E-commerce",
-    "Alimentação & Gastronomia",
-    "Marketplaces",
-    "Moda e Estilo",
-    "Beleza e Cosmética",
-  ],
-  "Logística e Transporte": [
-    "Transporte Rodoviário de Cargas",
-    "Operadores Logísticos",
-    "Armazenagem",
-    "Aviação",
-    "Logística de Última Milha",
-    "E-commerce Fulfillment",
-    "Delivery & Courier",
-    "Portos e Navegação",
-    "Mobilidade Urbana",
-  ],
-  "Saúde e Bem-estar": [
-    "Hospitais",
-    "Clínicas Médicas",
-    "Consultórios e Médicos Autônomos",
-    "Indústria Farmacêutica",
-    "Planos de Saúde",
-    "Odontologia",
-    "HealthTechs",
-  ],
-  "Serviços Profissionais B2B": [
-    "Escritórios de Advocacia",
-    "Contabilidade",
-    "Consultoria Empresarial",
-    "Agências de Marketing",
-    "Terceirização (BPO)",
-  ],
-  "Serviços Financeiros": [
-    "Bancos Tradicionais",
-    "Cooperativas de Crédito",
-    "Fintechs",
-    "Seguradoras",
-    "Gestão de Patrimônio",
-    "Seguros & Resseguros",
-    "Investimentos e Fundos",
-    "Criptomoedas & Blockchain",
-  ],
-  Tecnologia: [
-    "SaaS B2B",
-    "Cibersegurança",
-    "Infraestrutura de TI",
-    "IA",
-    "Hardware",
-    "Startups & Scale-ups",
-    "Fintechs",
-    "Healthtechs",
-    "Agritechs",
-    "Cloud Computing",
-  ],
-  Educação: [
-    "Escolas Básicas",
-    "Ensino Superior",
-    "Cursos Profissionalizantes",
-    "Treinamento Corporativo",
-    "EdTech",
-  ],
-  "Turismo & Hotelaria": [
-    "Hotéis e Resorts",
-    "Agências de Turismo",
-    "Companhias Aéreas Regionais",
-    "Empresas de Eventos",
-    "Plataformas de Booking",
-  ],
-  "Entretenimento & Mídia": [
-    "Produção de Conteúdo",
-    "Redes Sociais e Influenciadores",
-    "Streaming de Vídeo",
-    "Editoras e Publicações",
-    "Agências de Publicidade",
-  ],
-  "Energia & Utilidades": [
-    "Geração de Energia",
-    "Distribuição Elétrica",
-    "Gás e Combustíveis",
-    "Energias Renováveis",
-    "Infraestrutura de Água/Saneamento",
-  ],
-  Telecomunicações: [
-    "Operadoras Móveis",
-    "Internet Fixa",
-    "Data Centers",
-    "Provedores de Internet",
-    "Infraestrutura de Telecom",
-  ],
-};
+/** Macro → micro labels derivados do catálogo tipado ICP (CNAE + metadados). */
+const SETORES: Record<string, string[]> = Object.fromEntries(
+  ICP_SECTOR_CATALOG.map((macro) => [
+    macro.label,
+    [...macro.microSectors]
+      .sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
+      .map((m) => m.label),
+  ]),
+);
+
+/** Lookup rápido label de microsetor → metadados (CNAE, descrição). */
+const MICRO_META = Object.fromEntries(
+  ICP_SECTOR_CATALOG.flatMap((macro) =>
+    macro.microSectors.map((m) => [
+      m.label,
+      {
+        id: m.id,
+        macroId: macro.id,
+        macroLabel: macro.label,
+        cnaeGroups: m.cnaeGroups,
+        cnaeToValidar: Boolean(m.cnaeToValidar),
+        description: m.description,
+        priority: m.priority ?? 99,
+      },
+    ]),
+  ),
+);
 
 const PORTES = [
   "Até 50 funcionários",
@@ -217,8 +135,8 @@ function Chip({
         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all border h-8",
         "disabled:opacity-40 disabled:cursor-not-allowed",
         active
-          ? "bg-gradient-to-b from-[#6b73e0] to-[#4a52c4] text-white border-[#7c85ea] ring-2 ring-[#5e6ad2]/60 ring-offset-2 ring-offset-[#0f1011] shadow-[0_4px_14px_-2px_rgba(94,106,210,0.65),inset_0_1px_0_rgba(255,255,255,0.25)] font-semibold scale-[1.03]"
-          : "bg-[#18191a] text-[#d0d6e0] border-[#34343a] font-medium hover:border-[#5e6ad2]/60 hover:text-white",
+          ? "bg-gradient-to-b from-[#2E7A85] to-[#0F4C5C] text-white border-[#7FB0B4] ring-2 ring-[#0F4C5C]/60 ring-offset-2 ring-offset-[var(--cy-card)] shadow-[0_4px_14px_-2px_rgba(15, 76, 92, 0.65),inset_0_1px_0_rgba(255,255,255,0.25)] font-semibold scale-[1.03]"
+          : "bg-[var(--cy-surface-hover)] text-[var(--cy-muted)] border-[var(--cy-card-border)] font-medium hover:border-[#0F4C5C]/60 hover:text-white",
       )}
     >
       {active && showCheck && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
@@ -329,7 +247,7 @@ type PersistedFilters = {
   infoExtra: string;
 };
 
-const FILTERS_KEY = "lummi:prospeccao:filters:v1";
+const FILTERS_KEY = "leadforge:prospeccao:filters:v4";
 const DEFAULT_FILTERS: PersistedFilters = {
   macros: [],
   micros: [],
@@ -344,7 +262,10 @@ const DEFAULT_FILTERS: PersistedFilters = {
 function loadFilters(): PersistedFilters {
   if (typeof window === "undefined") return DEFAULT_FILTERS;
   try {
-    const raw = window.localStorage.getItem(FILTERS_KEY);
+    const raw =
+      window.localStorage.getItem(FILTERS_KEY) ??
+      window.localStorage.getItem("leadforge:prospeccao:filters:v3") ??
+      window.localStorage.getItem("leadforge:prospeccao:filters:v2");
     if (!raw) return DEFAULT_FILTERS;
     const parsed = JSON.parse(raw) as Partial<PersistedFilters> & {
       macro?: string;
@@ -380,7 +301,8 @@ function Index() {
   const run = useServerFn(generateLeads);
   const feedbackFn = useServerFn(submitLeadFeedback);
   const intelligenceFn = useServerFn(generateIntelligenceReport);
-  const hubspotFn = useServerFn(exportLeadsToHubspot);
+  const crmFn = useServerFn(importLeadsToCrm);
+  const sdrsFn = useServerFn(listTeamSdrs);
   const [intelligencePending, setIntelligencePending] = useState<Record<string, boolean>>({});
   const persisted = useMemo(() => loadFilters(), []);
   const [macros, setMacros] = useState<string[]>(persisted.macros);
@@ -395,22 +317,111 @@ function Index() {
   const [macroLimitWarning, setMacroLimitWarning] = useState(false);
   const [microLimitWarning, setMicroLimitWarning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [leads, setLeads] = useState<EnrichedLead[] | null>(null);
-  const [cached, setCached] = useState(false);
-  const [randomized, setRandomized] = useState(false);
-  const [exploracaoModo, setExploracaoModo] = useState<"validados" | "novo" | "agressivo">(
-    "validados",
+  // Estado de sessão (resultados, seleção, feedback, export) — sobrevive a
+  // navegar para CRM/Tarefas e voltar, sem refetch nem tela vazia.
+  type ProspeccaoSession = {
+    leads: EnrichedLead[] | null;
+    cached: boolean;
+    randomized: boolean;
+    exploracaoModo: "validados" | "novo" | "agressivo";
+    feedbackMap: Record<string, "good" | "bad">;
+    selected: string[];
+    crmResult: {
+      summary: { created: number; updated: number; failed: number };
+      results: { organization: string; status: string; error?: string }[];
+    } | null;
+  };
+  const SESSION_DEFAULT: ProspeccaoSession = {
+    leads: null,
+    cached: false,
+    randomized: false,
+    exploracaoModo: "validados",
+    feedbackMap: {},
+    selected: [],
+    crmResult: null,
+  };
+  const [session, setSession] = usePersistedRouteState<ProspeccaoSession>(
+    "prospeccao.session",
+    SESSION_DEFAULT,
+    3,
   );
+  const leads = session.leads;
+  const cached = session.cached;
+  const randomized = session.randomized;
+  const exploracaoModo = session.exploracaoModo;
+  const feedbackMap = session.feedbackMap;
+  const selected = useMemo(() => new Set(session.selected), [session.selected]);
+  const crmResult = session.crmResult;
+
+  const setLeads = useCallback(
+    (v: EnrichedLead[] | null | ((prev: EnrichedLead[] | null) => EnrichedLead[] | null)) => {
+      setSession((s) => ({
+        ...s,
+        leads: typeof v === "function" ? v(s.leads) : v,
+      }));
+    },
+    [setSession],
+  );
+  const setCached = useCallback(
+    (v: boolean) => setSession((s) => ({ ...s, cached: v })),
+    [setSession],
+  );
+  const setRandomized = useCallback(
+    (v: boolean) => setSession((s) => ({ ...s, randomized: v })),
+    [setSession],
+  );
+  const setExploracaoModo = useCallback(
+    (v: "validados" | "novo" | "agressivo") => setSession((s) => ({ ...s, exploracaoModo: v })),
+    [setSession],
+  );
+  const setFeedbackMap = useCallback(
+    (
+      v:
+        | Record<string, "good" | "bad">
+        | ((prev: Record<string, "good" | "bad">) => Record<string, "good" | "bad">),
+    ) => {
+      setSession((s) => ({
+        ...s,
+        feedbackMap: typeof v === "function" ? v(s.feedbackMap) : v,
+      }));
+    },
+    [setSession],
+  );
+  const setSelected = useCallback(
+    (v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+      setSession((s) => {
+        const prev = new Set(s.selected);
+        const next = typeof v === "function" ? v(prev) : v;
+        return { ...s, selected: Array.from(next) };
+      });
+    },
+    [setSession],
+  );
+  const setCrmResult = useCallback(
+    (
+      v:
+        | ProspeccaoSession["crmResult"]
+        | ((prev: ProspeccaoSession["crmResult"]) => ProspeccaoSession["crmResult"]),
+    ) => {
+      setSession((s) => ({
+        ...s,
+        crmResult: typeof v === "function" ? v(s.crmResult) : v,
+      }));
+    },
+    [setSession],
+  );
+
   const [skipCache, setSkipCache] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, "good" | "bad">>({});
   const [feedbackPending, setFeedbackPending] = useState<Record<string, boolean>>({});
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [hubspotLoading, setHubspotLoading] = useState(false);
-  const [hubspotResult, setHubspotResult] = useState<{
-    summary: { total: number; created: number; updated: number; failed: number };
-    results: HubspotLeadResult[];
-  } | null>(null);
+  const [crmLoading, setCrmLoading] = useState(false);
+  /** Modal: enviar lote selecionado a um SDR específico */
+  const [crmModalOpen, setCrmModalOpen] = useState(false);
+  const [sdrs, setSdrs] = useState<Array<{ id: string; email: string; full_name: string | null }>>(
+    [],
+  );
+  const [sdrsLoading, setSdrsLoading] = useState(false);
+  const [assignSdrId, setAssignSdrId] = useState<string>("");
 
   useEffect(() => {
     saveFilters({ macros, micros, porte, estados, quantidade, oQueVende, diferencial, infoExtra });
@@ -522,40 +533,118 @@ function Index() {
     }
   }
 
-  async function onExportHubspot() {
+  /** Abre modal para escolher SDR (ou enviar sem atribuição). */
+  async function openCrmModal() {
     if (!leads || leads.length === 0) return;
     const scope = selected.size > 0 ? leads.filter((l) => selected.has(l.empresa)) : leads;
     if (scope.length === 0) return;
-    setHubspotLoading(true);
-    setHubspotResult(null);
+    setCrmModalOpen(true);
+    setAssignSdrId("");
+    setSdrsLoading(true);
     try {
-      const res = await hubspotFn({
+      const team = await sdrsFn();
+      setSdrs(team.sdrs);
+    } catch {
+      setSdrs([]);
+    } finally {
+      setSdrsLoading(false);
+    }
+  }
+
+  /**
+   * Envia o lote selecionado (ou todos) ao CRM.
+   * assigned_to: UUID do SDR, ou null = só entra no Kanban sem dono.
+   * Fluxo típico: selecionar 5 → enviar ao SDR Y → limpar seleção →
+   * selecionar outros 5 → enviar ao SDR X.
+   */
+  async function onSendToCrm(assignedTo: string | null) {
+    if (!leads || leads.length === 0) return;
+    const scope = selected.size > 0 ? leads.filter((l) => selected.has(l.empresa)) : leads;
+    if (scope.length === 0) return;
+    setCrmLoading(true);
+    setCrmResult(null);
+    setCrmModalOpen(false);
+    try {
+      const res = await crmFn({
         data: {
+          assigned_to: assignedTo,
           leads: scope.map((l) => ({
-            empresa: l.empresa,
-            uf: l.uf,
-            segmento: l.segmento,
-            fit: l.fit,
+            organization: l.empresa,
             website: l.website,
             linkedin: l.linkedin,
+            cnpj: l.cnpj,
+            email: l.emails?.[0] ?? null,
+            phone:
+              l.telefone_comercial ?? l.telefone_fixo ?? l.whatsapp ?? l.telefones?.[0] ?? null,
+            segment: l.segmento,
+            uf: l.uf,
             municipio: l.municipio,
+            fit: l.fit,
+            confianca: l.confianca,
+            source: "prospeccao" as const,
+            status: "new" as const,
+            razao_social: l.razao_social,
+            nome_fantasia: l.nome_fantasia,
+            telefone_fixo: l.telefone_fixo,
+            whatsapp: l.whatsapp,
+            telefone_comercial: l.telefone_comercial,
+            sac: l.sac,
+            porte: l.porte_oficial,
+            cnae: l.cnae,
+            cnae_descricao: l.cnae_descricao,
+            fonte_enriquecimento: l.fonte_enriquecimento,
+            contatos_origem: (l.contatos ?? []).map((c) => ({
+              tipo: c.tipo as
+                | "telefone_fixo"
+                | "whatsapp"
+                | "telefone_comercial"
+                | "sac"
+                | "email"
+                | "formulario"
+                | "central_comercial"
+                | "site"
+                | "linkedin",
+              valor: c.valor,
+              origem: c.origem,
+              evidencia: c.evidencia ?? null,
+            })),
+            commercial_context_hash: commercialContextHash(oQueVende, diferencial, infoExtra),
+            decisionMakers: (l.decisionMakers ?? []).map((dm) => ({
+              name: dm.name,
+              title: dm.title,
+              area: dm.area,
+              priority: dm.priority,
+              score: dm.score,
+              probabilidade_decisor: dm.probabilidade_decisor,
+              linkedin_url: dm.linkedinUrl,
+              employment_verified: dm.employment_verified,
+              source: dm.source,
+              evidence: dm.evidence,
+              commercial_context_hash: commercialContextHash(oQueVende, diferencial, infoExtra),
+            })),
           })),
         },
       });
-      setHubspotResult(res);
+      setCrmResult(res);
+      // Limpa seleção para facilitar o próximo lote (5 para Y, 5 para X…)
+      setSelected(new Set());
     } catch (e) {
-      setHubspotResult({
-        summary: { total: scope.length, created: 0, updated: 0, failed: scope.length },
-        results: scope.map((l) => ({
-          empresa: l.empresa,
-          status: "failed" as const,
-          error: e instanceof Error ? e.message : "Erro inesperado",
-        })),
+      setCrmResult({
+        summary: { created: 0, updated: 0, failed: scope.length },
+        results: [
+          {
+            organization: "—",
+            status: "failed",
+            error: e instanceof Error ? e.message : String(e),
+          },
+        ],
       });
     } finally {
-      setHubspotLoading(false);
+      setCrmLoading(false);
     }
   }
+
+  const [importOpen, setImportOpen] = useState(false);
 
   async function onLogout() {
     await supabase.auth.signOut();
@@ -563,44 +652,39 @@ function Index() {
   }
 
   async function onIntelligence(empresa: string) {
-    // Pré-abre a aba SÍNCRONO, dentro do gesto do clique. A geração leva 60-180s e,
-    // se abrirmos a aba depois do await, o popup blocker do navegador silencia o
-    // window.open e o usuário fica sem feedback (a lista de leads permanece, mas a
-    // aba do relatório nunca aparece). Também não usamos "noopener" porque precisamos
-    // manter a referência para redirecionar quando o id chegar; anulamos o opener na sequência.
-    const win = typeof window !== "undefined" ? window.open("", "_blank") : null;
-    if (win) {
-      win.opener = null;
-      const safeName = empresa
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-      win.document.write(
-        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Gerando dossiê — ${safeName}</title><style>body{background:#010102;color:#f7f8f8;font:14px system-ui,sans-serif;margin:0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}.spin{width:36px;height:36px;border:3px solid #23252a;border-top-color:#5e6ad2;border-radius:50%;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}</style></head><body><div class="spin"></div><div>Gerando dossiê de <strong>${safeName}</strong>…</div><div style="color:#8a8f98;font-size:12px">Isso pode levar até 3 minutos com web search ativa.</div></body></html>`,
-      );
-      win.document.close();
+    // UX: abrir a aba IMEDIATAMENTE (evita bloqueio de pop-up) e deixar a
+    // geração acontecer na própria página de relatório.
+    // Persiste contexto do produto para priorização de TDs.
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(
+          "lf-intel-ctx",
+          JSON.stringify({
+            oQueVende: oQueVende.trim() || undefined,
+            diferencial: diferencial.trim() || undefined,
+            infoExtra: infoExtra.trim() || undefined,
+          }),
+        );
+      } catch {
+        /* private mode */
+      }
+      const url = `/inteligencia/relatorio?pending=${encodeURIComponent(empresa)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
     }
-
     setIntelligencePending((m) => ({ ...m, [empresa]: true }));
     try {
       const res = await intelligenceFn({
-        data: { companyName: empresa, sourceLeadEmpresa: empresa },
+        data: {
+          companyName: empresa,
+          sourceLeadEmpresa: empresa,
+          oQueVende: oQueVende.trim() || undefined,
+          diferencial: diferencial.trim() || undefined,
+          infoExtra: infoExtra.trim() || undefined,
+        },
       });
-      const url = `/inteligencia/relatorio?id=${encodeURIComponent(res.id)}`;
-      if (win && !win.closed) {
-        win.location.replace(url);
-      } else if (typeof window !== "undefined") {
-        // Fallback: popup bloqueado desde o início. Abrir agora provavelmente também
-        // será bloqueado, mas tentamos — se falhar, navegamos na aba atual.
-        const fallback = window.open(url, "_blank", "noopener,noreferrer");
-        if (!fallback) navigate({ to: "/inteligencia/relatorio", search: { id: res.id } });
-      } else {
-        navigate({ to: "/inteligencia/relatorio", search: { id: res.id } });
-      }
+      navigate({ to: "/inteligencia/relatorio", search: { id: res.id } });
     } catch (e) {
-      if (win && !win.closed) win.close();
       alert(e instanceof Error ? e.message : "Erro ao gerar dossiê");
     } finally {
       setIntelligencePending((m) => ({ ...m, [empresa]: false }));
@@ -608,7 +692,7 @@ function Index() {
   }
 
   return (
-    <main className="min-h-screen bg-[#010102] text-[#f7f8f8]">
+    <main className="min-h-full">
       <div className="max-w-3xl mx-auto px-4 pt-10 pb-20 sm:pt-16">
         <header className="text-white mb-8">
           <Link
@@ -622,6 +706,13 @@ function Index() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur text-xs font-semibold tracking-wide">
                 <Sparkles className="w-3.5 h-3.5" /> PROSPECÇÃO B2B COM IA
               </div>
+              <button
+                type="button"
+                onClick={() => setImportOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0F4C5C] text-white text-xs font-semibold hover:bg-[#2E7A85] transition"
+              >
+                Importar planilha CSV
+              </button>
               <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
                 Descubra empresas ideais em segundos.
               </h1>
@@ -648,7 +739,7 @@ function Index() {
           </div>
         </header>
 
-        <section className="bg-[#0f1011] border border-[#23252a] rounded-xl p-5 sm:p-6 space-y-5">
+        <section className="bg-[var(--cy-card)] border border-[var(--cy-card-border)] rounded-xl p-5 sm:p-6 space-y-5">
           <div>
             <h2 className="text-lg font-extrabold">Perfil de Cliente Ideal (ICP)</h2>
             <p className="text-sm text-muted-foreground mt-1">
@@ -704,10 +795,16 @@ function Index() {
                 {microOptions.map((m) => {
                   const active = micros.includes(m);
                   const blocked = !active && micros.length >= 5;
+                  const meta = MICRO_META[m];
+                  const tip = meta
+                    ? `${meta.description}${meta.cnaeGroups.length ? ` · CNAE: ${meta.cnaeGroups.join("; ")}` : ""}${meta.cnaeToValidar ? " · (CNAE a validar)" : ""}`
+                    : m;
                   return (
-                    <Chip key={m} active={active} disabled={blocked} onClick={() => toggleMicro(m)}>
-                      {m}
-                    </Chip>
+                    <span key={m} title={tip} className="inline-flex">
+                      <Chip active={active} disabled={blocked} onClick={() => toggleMicro(m)}>
+                        {m}
+                      </Chip>
+                    </span>
                   );
                 })}
               </div>
@@ -715,6 +812,27 @@ function Index() {
               <div className="h-12 rounded-2xl border border-dashed border-border bg-secondary/40 flex items-center px-4 text-sm text-muted-foreground">
                 Selecione um macro-setor acima
               </div>
+            )}
+            {micros.length > 0 && (
+              <ul className="mt-3 space-y-1.5 text-[11px] text-muted-foreground">
+                {micros.map((m) => {
+                  const meta = MICRO_META[m];
+                  if (!meta) return null;
+                  return (
+                    <li key={m} className="leading-snug">
+                      <span className="font-semibold text-foreground">{m}</span>
+                      {meta.cnaeGroups.length > 0 && (
+                        <span>
+                          {" "}
+                          · CNAE {meta.cnaeGroups.join("; ")}
+                          {meta.cnaeToValidar ? " (validar)" : ""}
+                        </span>
+                      )}
+                      <span className="block opacity-90">{meta.description}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
             {microLimitWarning && (
               <p className="mt-2 text-xs text-amber-400 font-semibold">
@@ -831,8 +949,8 @@ function Index() {
                   className={cn(
                     "p-3 rounded-lg border text-xs font-medium transition text-left",
                     exploracaoModo === mode.value
-                      ? "bg-[#5e6ad2] border-[#5e6ad2] text-white shadow-lg"
-                      : "bg-[#18191a] border-[#34343a] text-muted-foreground hover:border-[#5e6ad2] hover:bg-[#1f2023]",
+                      ? "bg-[#0F4C5C] border-[#0F4C5C] text-white shadow-lg"
+                      : "bg-[var(--cy-surface-hover)] border-[var(--cy-card-border)] text-muted-foreground hover:border-[#0F4C5C] hover:bg-[var(--cy-surface-active)]",
                   )}
                 >
                   <div className="text-lg mb-1">{mode.icon}</div>
@@ -847,7 +965,7 @@ function Index() {
                 type="checkbox"
                 checked={skipCache}
                 onChange={(e) => setSkipCache(e.target.checked)}
-                className="w-4 h-4 mt-1 cursor-pointer accent-[#5e6ad2]"
+                className="w-4 h-4 mt-1 cursor-pointer accent-[#0F4C5C]"
               />
               <div>
                 <div className="text-xs font-semibold text-foreground">
@@ -861,7 +979,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mt-5 bg-[#0f1011] border border-[#23252a] rounded-xl p-5 sm:p-6 space-y-4">
+        <section className="mt-5 bg-[var(--cy-card)] border border-[var(--cy-card-border)] rounded-xl p-5 sm:p-6 space-y-4">
           <div>
             <h2 className="text-lg font-extrabold">Seu negócio (para gerar o "fit")</h2>
             <p className="text-sm text-muted-foreground mt-1">
@@ -879,7 +997,7 @@ function Index() {
               value={oQueVende}
               onChange={(e) => setOQueVende(e.target.value)}
               placeholder="Ex: Marketing Médico, Plano de Saúde, Software CRM…"
-              className="w-full h-10 rounded-lg border border-[#23252a] bg-[#141516] px-3 text-sm text-[#f7f8f8] outline-none focus:border-[#5e6ad2] transition"
+              className="w-full h-10 rounded-lg border border-[var(--cy-card-border)] bg-[var(--cy-input-bg)] px-3 text-sm text-[var(--cy-content-ink)] outline-none focus:border-[#0F4C5C] transition"
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
               Isto descreve o seu negócio, não o setor-alvo. A IA irá excluir concorrentes.
@@ -896,7 +1014,7 @@ function Index() {
               value={diferencial}
               onChange={(e) => setDiferencial(e.target.value)}
               placeholder="Ex: Preço competitivo, Atendimento 24/7…"
-              className="w-full h-10 rounded-lg border border-[#23252a] bg-[#141516] px-3 text-sm text-[#f7f8f8] outline-none focus:border-[#5e6ad2] transition"
+              className="w-full h-10 rounded-lg border border-[var(--cy-card-border)] bg-[var(--cy-input-bg)] px-3 text-sm text-[var(--cy-content-ink)] outline-none focus:border-[#0F4C5C] transition"
             />
           </div>
 
@@ -910,7 +1028,7 @@ function Index() {
               value={infoExtra}
               onChange={(e) => setInfoExtra(e.target.value)}
               placeholder="Ex: Priorize empresas com frota própria, ou empresas com filiais…"
-              className="w-full rounded-lg border border-[#23252a] bg-[#141516] px-3 py-2.5 text-sm text-[#f7f8f8] outline-none focus:border-[#5e6ad2] transition resize-none"
+              className="w-full rounded-lg border border-[var(--cy-card-border)] bg-[var(--cy-input-bg)] px-3 py-2.5 text-sm text-[var(--cy-content-ink)] outline-none focus:border-[#0F4C5C] transition resize-none"
             />
           </div>
 
@@ -920,8 +1038,8 @@ function Index() {
             disabled={!canSubmit}
             className={cn(
               "w-full h-11 rounded-lg text-sm font-semibold text-white transition-all",
-              "bg-[#5e6ad2] hover:bg-[#6e7ae2]",
-              "shadow-[0_4px_20px_rgba(94,106,210,0.35)]",
+              "bg-[#0F4C5C] hover:bg-[#2E7A85]",
+              "shadow-[0_4px_20px_rgba(15, 76, 92, 0.35)]",
               "disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]",
             )}
           >
@@ -943,7 +1061,7 @@ function Index() {
         </section>
 
         {loading && (
-          <section className="mt-5 bg-[#0f1011] border border-[#23252a] rounded-xl p-5 sm:p-6 space-y-3">
+          <section className="mt-5 bg-[var(--cy-card)] border border-[var(--cy-card-border)] rounded-xl p-5 sm:p-6 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 animate-pulse">
                 <div className="w-12 h-12 rounded-full bg-secondary" />
@@ -957,7 +1075,7 @@ function Index() {
         )}
 
         {leads && (
-          <section className="mt-5 bg-[#0f1011] border border-[#23252a] rounded-xl p-5 sm:p-6">
+          <section className="mt-5 bg-[var(--cy-card)] border border-[var(--cy-card-border)] rounded-xl p-5 sm:p-6">
             <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
               <div>
                 <h2 className="text-xl sm:text-2xl font-extrabold">Leads gerados</h2>
@@ -1006,52 +1124,47 @@ function Index() {
                 </button>
                 <button
                   type="button"
-                  onClick={onExportHubspot}
-                  disabled={hubspotLoading || leads.length === 0}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#FF7A59] hover:bg-[#e8663f] text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => void openCrmModal()}
+                  disabled={crmLoading || leads.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#0F4C5C] hover:bg-[#2E7A85] text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {hubspotLoading ? (
+                  {crmLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Building2 className="w-4 h-4" />
+                    <Kanban className="w-4 h-4" />
                   )}
-                  {hubspotLoading
+                  {crmLoading
                     ? "Enviando…"
                     : selected.size > 0
-                      ? `Enviar ${selected.size} para HubSpot`
-                      : "Enviar para HubSpot"}
+                      ? `Enviar ${selected.size} ao CRM / SDR`
+                      : "Enviar ao CRM / SDR"}
                 </button>
               </div>
             </div>
 
-            {hubspotResult && (
+            {crmResult && (
               <div
                 className={cn(
                   "mb-5 rounded-2xl border p-4 text-sm",
-                  hubspotResult.summary.failed > 0
+                  crmResult.summary.failed > 0
                     ? "border-amber-500/30 bg-amber-500/10"
                     : "border-emerald-500/30 bg-emerald-500/10",
                 )}
               >
                 <p className="font-semibold text-foreground">
-                  HubSpot: {hubspotResult.summary.created} criada(s),{" "}
-                  {hubspotResult.summary.updated} atualizada(s)
-                  {hubspotResult.summary.failed > 0 && `, ${hubspotResult.summary.failed} com erro`}
-                  .
+                  CRM: {crmResult.summary.created} criado(s), {crmResult.summary.updated}{" "}
+                  atualizado(s)
+                  {crmResult.summary.failed > 0 && `, ${crmResult.summary.failed} com erro`}.
                 </p>
-                {hubspotResult.results.some((r) => r.status === "failed") && (
-                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {hubspotResult.results
-                      .filter((r) => r.status === "failed")
-                      .map((r, i) => (
-                        <li key={i}>
-                          • {r.empresa}: {r.error}
-                        </li>
-                      ))}
-                  </ul>
-                )}
+                <Link
+                  to="/crm"
+                  className="mt-2 inline-block text-xs text-[var(--cy-muted)] hover:underline"
+                >
+                  Abrir Kanban →
+                </Link>
               </div>
             )}
+
             {leads.length === 0 && (
               <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-border bg-secondary/30">
                 <p className="text-sm font-semibold text-foreground">
@@ -1063,7 +1176,7 @@ function Index() {
                 </p>
               </div>
             )}
-            <ul className="divide-y divide-[#1a1b1e]">
+            <ul className="divide-y divide-[#0f3038]">
               {leads.map((lead, i) => {
                 const currentFeedback = feedbackMap[lead.empresa];
                 const pending = feedbackPending[lead.empresa];
@@ -1073,7 +1186,7 @@ function Index() {
                   lead.confianca === "alta" ? 88 : lead.confianca === "media" ? 65 : 40;
                 return (
                   <li key={i}>
-                    <div className="flex items-center gap-3 h-11 px-2 hover:bg-[#141516] transition group border-b border-[#1a1b1e] last:border-0">
+                    <div className="flex items-center gap-3 h-11 px-2 hover:bg-[var(--cy-input-bg)] transition group border-b border-[#0f3038] last:border-0">
                       {/* select */}
                       <button
                         type="button"
@@ -1088,22 +1201,22 @@ function Index() {
                         className={cn(
                           "w-4 h-4 shrink-0 rounded border flex items-center justify-center transition",
                           isSelected
-                            ? "bg-[#5e6ad2] border-[#5e6ad2] text-white"
-                            : "bg-transparent border-[#34343a] hover:border-[#5e6ad2]",
+                            ? "bg-[#0F4C5C] border-[#0F4C5C] text-white"
+                            : "bg-transparent border-[var(--cy-card-border)] hover:border-[#0F4C5C]",
                         )}
                       >
                         {isSelected && <Check className="w-3 h-3" />}
                       </button>
 
                       {/* avatar */}
-                      <div className="w-7 h-7 shrink-0 rounded-md bg-[#1f2023] flex items-center justify-center text-[10px] font-semibold text-[#8a8f98]">
+                      <div className="w-7 h-7 shrink-0 rounded-md bg-[var(--cy-surface-active)] flex items-center justify-center text-[10px] font-semibold text-[var(--cy-muted)]">
                         {lead.empresa.trim().charAt(0).toUpperCase() || "?"}
                       </div>
 
                       {/* name + meta */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-medium text-[#f7f8f8] truncate">
+                          <span className="text-[13px] font-medium text-[var(--cy-content-ink)] truncate">
                             {lead.empresa}
                           </span>
                           <span
@@ -1117,7 +1230,7 @@ function Index() {
                             {confiancaLabel(lead.confianca)}
                           </span>
                         </div>
-                        <div className="text-[11px] text-[#8a8f98] truncate">
+                        <div className="text-[11px] text-[var(--cy-muted)] truncate">
                           {lead.segmento} · {lead.uf}
                           {lead.municipio ? ` · ${lead.municipio}` : ""}
                         </div>
@@ -1130,7 +1243,7 @@ function Index() {
                             href={lead.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded hover:bg-[#1f2023] text-[#8a8f98] hover:text-white"
+                            className="p-1.5 rounded hover:bg-[var(--cy-surface-active)] text-[var(--cy-muted)] hover:text-white"
                             title="Site"
                           >
                             <Globe className="w-3.5 h-3.5" />
@@ -1141,7 +1254,7 @@ function Index() {
                             href={lead.linkedin}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded hover:bg-[#1f2023] text-[#8a8f98] hover:text-white"
+                            className="p-1.5 rounded hover:bg-[var(--cy-surface-active)] text-[var(--cy-muted)] hover:text-white"
                             title="LinkedIn"
                           >
                             <Linkedin className="w-3.5 h-3.5" />
@@ -1152,10 +1265,10 @@ function Index() {
                           disabled={pending}
                           onClick={() => onFeedback(lead.empresa, "good")}
                           className={cn(
-                            "p-1.5 rounded hover:bg-[#1f2023]",
+                            "p-1.5 rounded hover:bg-[var(--cy-surface-active)]",
                             currentFeedback === "good"
                               ? "text-[#4ade80]"
-                              : "text-[#8a8f98] hover:text-white",
+                              : "text-[var(--cy-muted)] hover:text-white",
                           )}
                         >
                           <ThumbsUp className="w-3.5 h-3.5" />
@@ -1165,10 +1278,10 @@ function Index() {
                           disabled={pending}
                           onClick={() => onFeedback(lead.empresa, "bad")}
                           className={cn(
-                            "p-1.5 rounded hover:bg-[#1f2023]",
+                            "p-1.5 rounded hover:bg-[var(--cy-surface-active)]",
                             currentFeedback === "bad"
                               ? "text-[#f87171]"
-                              : "text-[#8a8f98] hover:text-white",
+                              : "text-[var(--cy-muted)] hover:text-white",
                           )}
                         >
                           <ThumbsDown className="w-3.5 h-3.5" />
@@ -1177,7 +1290,7 @@ function Index() {
                           type="button"
                           disabled={intelligencePending[lead.empresa]}
                           onClick={() => onIntelligence(lead.empresa)}
-                          className="p-1.5 rounded hover:bg-[#1f2023] text-[#8a8f98] hover:text-[#5e6ad2]"
+                          className="p-1.5 rounded hover:bg-[var(--cy-surface-active)] text-[var(--cy-muted)] hover:text-[#0F4C5C]"
                           title="Inteligência"
                         >
                           {intelligencePending[lead.empresa] ? (
@@ -1200,6 +1313,80 @@ function Index() {
           </section>
         )}
       </div>
+
+      {/* Modal: escolher SDR para o lote */}
+      {crmModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setCrmModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--cy-card-border)] bg-[var(--cy-card)] p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center gap-2">
+              <Users className="h-4 w-4 text-[#0F4C5C]" />
+              <h3 className="flex-1 text-base font-semibold text-[var(--cy-content-ink)]">
+                Enviar ao CRM
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCrmModalOpen(false)}
+                className="rounded-lg p-1 text-[var(--cy-muted)] hover:bg-[var(--cy-surface-hover)] hover:text-[var(--cy-content-ink)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mb-3 text-xs text-[var(--cy-muted)] leading-relaxed">
+              {selected.size > 0
+                ? `${selected.size} lead(s) selecionado(s). Escolha o SDR que vai receber este lote. Depois você pode selecionar outro lote e enviar para outro SDR.`
+                : `Todos os ${leads?.length ?? 0} leads serão enviados. Selecione um SDR ou envie sem atribuição.`}
+            </p>
+
+            <label className="mb-1.5 block text-xs font-semibold text-[var(--cy-muted)]">
+              Atribuir a SDR
+            </label>
+            {sdrsLoading ? (
+              <div className="mb-4 flex items-center gap-2 text-xs text-[var(--cy-muted)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando equipe…
+              </div>
+            ) : (
+              <select
+                value={assignSdrId}
+                onChange={(e) => setAssignSdrId(e.target.value)}
+                className="mb-4 w-full rounded-xl border border-[var(--cy-card-border)] bg-[var(--cy-input-bg)] px-3 py-2.5 text-sm text-[var(--cy-content-ink)] outline-none focus:border-[#0F4C5C]"
+              >
+                <option value="">— Sem atribuição (só entra no Kanban) —</option>
+                {sdrs.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name || s.email}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCrmModalOpen(false)}
+                className="flex-1 rounded-xl border border-[var(--cy-card-border)] bg-[var(--cy-input-bg)] py-2.5 text-sm font-semibold text-[var(--cy-muted)] hover:bg-[var(--cy-surface-hover)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={crmLoading}
+                onClick={() => void onSendToCrm(assignSdrId || null)}
+                className="flex-1 rounded-xl bg-[#0F4C5C] py-2.5 text-sm font-semibold text-white hover:bg-[#2E7A85] disabled:opacity-50"
+              >
+                {crmLoading ? "Enviando…" : "Confirmar envio"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <LeadImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </main>
   );
 }

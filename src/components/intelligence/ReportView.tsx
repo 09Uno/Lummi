@@ -10,8 +10,9 @@ import {
   AlertTriangle,
   MessageCircleQuestion,
   Building2,
+  Users,
 } from "lucide-react";
-import type { CompanyReport, EducationalMaturity } from "@/lib/lummi-data";
+import type { CompanyReport, EducationalMaturity, DecisionMaker } from "@/lib/lummi-data";
 import { CompanyLogo } from "./CompanyLogo";
 import { InvestmentSimulation } from "./InvestmentSimulation";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,60 @@ export function ReportView({ report }: { report: CompanyReport }) {
         <p className="text-foreground/90 leading-relaxed text-sm">{report.executiveSummary}</p>
       </SectionCard>
 
+      {/* Tomadores de Decisão — sem viés fixo de RH/People; a área mostrada
+          é a que a IA determinou por contexto comercial (o que vende +
+          diferencial), não um filtro fixo. */}
+      <SectionCard title="Tomadores de Decisão" icon={<Users size={14} />}>
+        {(report.decisionMakers?.length ?? 0) === 0 ? (
+          <p className="text-sm text-muted-foreground italic">
+            Nenhum tomador de decisão identificado em fontes públicas para o contexto comercial
+            informado.
+          </p>
+        ) : (
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {report.decisionMakers.map((dm: DecisionMaker, i: number) => (
+              <li
+                key={`${dm.name}-${i}`}
+                className="flex items-start justify-between gap-3 rounded-2xl border border-border bg-secondary/40 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{dm.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {dm.title || "Cargo não informado"}
+                  </p>
+                  {dm.area && (
+                    <p className="text-[10px] text-muted-foreground/80 mt-0.5 uppercase tracking-wide">
+                      {dm.area}
+                    </p>
+                  )}
+                  {dm.notes && (
+                    <p className="text-[11px] text-muted-foreground/80 mt-1 line-clamp-2">
+                      {dm.notes}
+                    </p>
+                  )}
+                </div>
+                {dm.linkedinUrl ? (
+                  <a
+                    href={dm.linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-[#0A66C2]/30 bg-[#0A66C2]/10 px-2.5 py-1.5 text-xs font-semibold text-[#0A66C2] hover:bg-[#0A66C2]/20 transition"
+                    title="Abrir LinkedIn em nova guia"
+                  >
+                    <Linkedin size={14} />
+                    LinkedIn
+                  </a>
+                ) : (
+                  <span className="shrink-0 text-[10px] text-muted-foreground italic">
+                    sem LinkedIn
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+
       {/* 2. Perfil Corporativo */}
       <SectionCard title="2. Perfil Corporativo" icon={<Building2 size={14} />}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -103,6 +158,78 @@ export function ReportView({ report }: { report: CompanyReport }) {
           <DetailCard label="CNPJ" value={report.cnpj} />
           <DetailCard label="Presença Geográfica" value={report.geographicPresence} />
         </div>
+        {(report.cnpjSources.length > 0 ||
+          report.headquartersSources.length > 0 ||
+          report.headquartersDivergence) && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {report.cnpjSources.length > 0 && (
+              <div className="bg-secondary/40 p-4 rounded-2xl border border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                  Fontes de CNPJ
+                </p>
+                <ul className="space-y-1.5">
+                  {report.cnpjSources.map((s, i) => (
+                    <li key={i} className="text-xs text-foreground/90 leading-relaxed">
+                      <span className="font-mono font-bold">{s.value}</span>
+                      <span className="text-muted-foreground"> — {s.source}</span>
+                      {s.url && (
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-2 text-primary hover:underline"
+                        >
+                          ↗
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(report.headquartersSources.length > 0 || report.headquartersDivergence) && (
+              <div
+                className={cn(
+                  "p-4 rounded-2xl border",
+                  report.headquartersDivergence
+                    ? "border-amber-500/60 bg-amber-500/10"
+                    : "bg-secondary/40 border-border",
+                )}
+              >
+                <p
+                  className="text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5"
+                  style={{ color: report.headquartersDivergence ? "#fbbf24" : undefined }}
+                >
+                  <MapPin size={11} />
+                  Fontes de endereço {report.headquartersDivergence && "· ⚠️ divergência"}
+                </p>
+                <ul className="space-y-1.5">
+                  {report.headquartersSources.map((s, i) => (
+                    <li key={i} className="text-xs text-foreground/90 leading-relaxed">
+                      <span className="font-semibold">{s.value}</span>
+                      <span className="text-muted-foreground"> — {s.source}</span>
+                      {s.url && (
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-2 text-primary hover:underline"
+                        >
+                          ↗
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {report.headquartersNote && (
+                  <p className="mt-2 text-xs italic" style={{ color: "#fbbf24" }}>
+                    {report.headquartersNote}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
           <KeyValueBlock
             label="Produtos / Serviços"
@@ -319,7 +446,7 @@ export function ReportView({ report }: { report: CompanyReport }) {
           6. Pontos de Atenção
         </h3>
         {report.attentionPoints.length === 0 ? (
-          <p className="text-sm italic" style={{ color: "#d0d6e0" }}>
+          <p className="text-sm italic" style={{ color: "#c8d8da" }}>
             Nenhum ponto crítico identificado.
           </p>
         ) : (
@@ -328,11 +455,11 @@ export function ReportView({ report }: { report: CompanyReport }) {
               <li
                 key={p}
                 className="flex gap-3 text-sm leading-relaxed"
-                style={{ color: "#f7f8f8" }}
+                style={{ color: "#F4EFE3" }}
               >
                 <span
                   className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full font-bold text-xs"
-                  style={{ background: "#f5a623", color: "#0f1011" }}
+                  style={{ background: "#f5a623", color: "#0B3A44" }}
                   aria-hidden
                 >
                   !
