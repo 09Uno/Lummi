@@ -4,12 +4,7 @@
 //     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-
-// Deploy alvo é um container Node atrás do NPM (VPS própria), não Cloudflare.
-// NITRO_PRESET=node-server troca o preset no build; sobrescreve o default da
-// config do Lovable sem quebrar dev local. Também respeita override manual.
-process.env.NITRO_PRESET ??= "node-server";
+import { defineConfig }  from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
